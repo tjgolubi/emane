@@ -1,0 +1,3 @@
+/usr/lib/libgpsdlocationagent.*
+/usr/share/emane/agents/gpsdlocation/xml/*
+/usr/share/doc/emane-agent-gpsdlocation/*

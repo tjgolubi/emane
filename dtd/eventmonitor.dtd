@@ -1,0 +1,8 @@
+<?xml encoding="UTF-8"?>
+
+<!ELEMENT eventmonitor (param*)>
+<!ATTLIST eventmonitor 
+          xmlns:xi CDATA #REQUIRED>
+
+<!ENTITY % param SYSTEM "param.dtd">
+%param;

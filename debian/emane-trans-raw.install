@@ -1,0 +1,3 @@
+/usr/lib/libtransraw*
+/usr/share/doc/emane-trans-raw/*
+/usr/share/emane/transports/raw/xml/*

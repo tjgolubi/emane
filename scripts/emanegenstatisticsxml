@@ -1,0 +1,429 @@
+#!/usr/bin/perl -w
+#
+# Copyright (c) 2008 - DRS CenGen, LLC, Columbia, Maryland
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# * Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# * Neither the name of DRS CenGen, LLC nor the names of its
+#   contributors may be used to endorse or promote products derived
+#   from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# The copyright holder hereby grants to the U.S. Government a copyright
+# license to use this computer software/computer software documentation
+# that is of the same scope as the rights set forth in the definition of
+# "unlimited rights" found in DFARS 252.227-7014(a)(15)(June 1995).
+#
+
+use Getopt::Long;
+use File::Find;
+use XML::LibXML;
+use strict;
+
+# Constants
+use constant DEFAULT_STATS_FILE => "statdefs.h";
+
+# Globals
+my ($macFile, $phyFile, $compFile, $shimFile, $statFile, $xmlFile, $dtd, $verbose, $help);
+
+my %macTypeHash  = ();
+my %phyTypeHash  = ();
+my %shimTypeHash = ();
+my %compTypeHash = ();
+
+my $basePath = '';
+
+# Get command line options
+&usage && exit -1 unless GetOptions("mac=s"       => \$macFile,
+                                    "phy=s"       => \$phyFile,
+                                    "component=s" => \$compFile,
+                                    "shim=s"      => \$shimFile,
+                                    "stats=s"     => \$statFile,
+                                    "xml=s"       => \$xmlFile,
+                                    "dtd=s"       => \$dtd,
+                                    "help"        => \$help,
+                                    "verbose"     => \$verbose);
+
+&usage && exit 0 if $help;
+
+# Must have the basepath to the tree
+unless (@ARGV)
+{
+    print "$0: Path to the root of the EMANE tree must be specified\n\n";
+    &usage;
+    exit -1;
+}
+
+&usage && exit -1 unless ($macFile && $phyFile && $compFile);
+
+
+$statFile = DEFAULT_STATS_FILE unless $statFile;
+
+print "[] Phy type definitions: $phyFile.\n";
+print "[] Mac type definitions: $macFile.\n";
+print "[] Shim type definitions: $shimFile.\n" if $shimFile;
+print "[] Component type definitions: $compFile.\n";
+print "[] Statistics definitions: $statFile.\n\n";
+print "[] Filling hashes.\n";
+# Fill in the phy hash
+$phyTypeHash{'REGISTERED_NONE'}{'value'} = 0;
+&fill_hash(\%phyTypeHash, $phyFile);
+
+# Fill in the mac hash
+$macTypeHash{'REGISTERED_NONE'}{'value'} = 0;
+&fill_hash(\%macTypeHash, $macFile);
+
+# Fill in the component hash
+&fill_hash(\%compTypeHash, $compFile);
+
+# Fill in the shim hash (if available)
+$shimTypeHash{'REGISTERED_NONE'}{'value'} = 0;
+&fill_hash(\%shimTypeHash, $shimFile) if $shimFile;
+
+print "[] Scanning for statistics definitions.\n";
+# Now scan the tree for all 'statdefs.h' files
+$basePath = shift;
+find(\&process_file, $basePath);
+
+# Generate xml based on collected data
+if ($xmlFile)
+{
+    print "[] Generating xml into $xmlFile.\n";
+    &generate_xml;
+}
+
+# Dump out each layer hash
+&dump_layer_hash(\%phyTypeHash) if $verbose;
+&dump_layer_hash(\%macTypeHash) if $verbose;
+&dump_layer_hash(\%shimTypeHash) if $verbose;
+
+
+print "[] Done.\n";
+# ---  main thread of execution ends here  --- #
+
+
+# ---=== SUBS ===--- #
+#
+# Shows the help screen
+#
+sub usage
+{
+    print "Usage: $0 [REQUIRED_OPTIONs] [OPTION] path_to_emane_tree\n";
+    print "\tWhere REQUIRED_OPTIONs are:\n";
+    print "--mac FILENAME              Specifies file with MAC layer registration ids\n";
+    print "--phy FILENAME              Specifies file with PHY layer registration ids\n";
+    print "--component FILENAME        Specifies file with COMPONENT_TYPE ids\n";
+    print "\tOPTION can be one or more of:\n";
+    print "--shim FILENAME             Specifies file with SHIM layer registration ids\n";
+    print "--statfile FILENAME         Specifies the name of the statistic definitions file\n";
+    print "                                  Default: " . DEFAULT_STATS_FILE . "\n";
+    print "--xml FILENAME              Specifies the name of the file to save output as xml\n";
+    print "                                  Default: None.\n";
+    print "--dtd FILENAME              Specifies the name of the file to validate xml against\n";
+    print "--help                      Prints this screen and exits\n";
+    print "--verbose                   Shows output during execution\n";
+    
+}
+
+#
+# Goes through a specified file to fill the specified hash
+#
+sub fill_hash
+{
+    my ($hashRef, $filename) = @_;
+
+    # Open the file and read in contents
+    open (TYPE_FILE, "$filename") or die "$0: Could not open $filename: $!";
+    
+    my @lines = <TYPE_FILE>;
+
+    close(TYPE_FILE);
+
+    # Grep out the matching lines/numbers
+    grep {
+        if (/((([A-Z0-9]+\_)*)[A-Z0-9]+)\s+\=\s+0x(\d+|[a-fA-F]+)/)
+        {
+            $$hashRef{$1}{'value'} = hex($4);
+        }
+        elsif (/((([A-Z0-9]+\_)*)[A-Z0-9]+)\s+\=\s+(\d+)/)
+        {
+            $$hashRef{$1}{'value'} = $4;
+        }
+          
+    } @lines;
+    
+    if ($verbose)
+    {
+        print "[] Processing $filename.\n";
+        print "[] Hash being populated with:\n";
+        foreach my $key (keys %{$hashRef})
+        {
+            print "\t - $key => $$hashRef{$key}{'value'}\n";
+        }
+    }
+        
+}
+
+#
+# Performs file-specific actions for stat definitions
+#
+sub process_file
+{
+    # We only care about $statFile
+    return unless (/^$statFile$/);
+
+    # Get the definitions out of the stat file and put them in a local hash
+    my %statHash = ();
+
+    # We're inside the directory, so no need to include the path
+    open (STAT_FILE, "$_") or die "$0: Could not open $File::Find::name : $!";
+    
+    my @lines = <STAT_FILE>;
+
+    close(STAT_FILE);
+
+    my $value;
+    # Grep out the matching lines/numbers
+    grep {
+        if (/((([A-Z0-9]+\_)*)IDENTIFIER+)\s+\=\s+0x(\d+[a-fA-F]*)/)
+        {
+            $value = hex($4);
+        }
+        elsif (/((([A-Z0-9]+\_)*)IDENTIFIER)\s+\=\s+(\d+)/)
+        {
+            $value = $4;
+        }
+        elsif (/((([A-Z0-9]+\_)*)DESCRIPTION)\s+\=\s+\"([^\"]*)\"/)
+        {
+            $statHash{$value} = $4 if ($value);
+            
+            $value = undef;
+        }
+        
+    } @lines;
+
+    my ($comp, $reg);
+
+    # Now scan the files in the the directory with statdefs for COMPONENT and REGISTERED
+    for my $layerFile (<*layer.*>)
+    {
+        open (LAYER_FILE, "$layerFile") or 
+            die "$0: Could not open $layerFile in $File::Find::dir: $!";
+        my @layerLines = <LAYER_FILE>;
+            
+        close(LAYER_FILE);
+        
+
+
+        my @matches = grep {
+            $comp = $1 if (/(COMPONENT_[A-Z]+)/);
+            $reg  = $1 if (/(REGISTERED_([A-Z0-9]+\_*)*)/);
+                
+        } @layerLines;
+
+        
+    
+        # Then, set the reference hash as the value for whichever 
+        # files use the definitions
+        
+        
+        # If only $comp[onent] is defined, set hash for all registered 
+        # layers of that type
+        if ($reg)
+        {
+            # Both are defined, use the more direct registration id
+            if ($reg =~ /PHY/)
+            {
+                $phyTypeHash{$reg}{'stats'} = \%statHash;
+                $phyTypeHash{$reg}{'type'} = $comp;
+            }
+            elsif ($reg =~ /MAC/)
+            {
+                $macTypeHash{$reg}{'stats'} = \%statHash;
+                $macTypeHash{$reg}{'type'} = $comp;
+            }
+            elsif ($reg =~ /SHIM/)
+            {
+                $shimTypeHash{$reg}{'stats'} = \%statHash;
+                $shimTypeHash{$reg}{'type'} = $comp;
+            }
+            
+        }
+        elsif ($comp)
+        {
+            if ($comp =~ /PHYLAYER/)
+            {
+                $phyTypeHash{'REGISTERED_NONE'}{'stats'} = \%statHash;
+                $phyTypeHash{'REGISTERED_NONE'}{'type'} = $comp;
+            }
+            elsif ($comp =~ /MACLAYER/)
+            {
+                $macTypeHash{'REGISTERED_NONE'}{'stats'} = \%statHash;
+                $macTypeHash{'REGISTERED_NONE'}{'type'} = $comp;
+            }
+            elsif ($comp =~ /SHIMLAYER/)
+            {
+                $shimTypeHash{'REGISTERED_NONE'}{'stats'} = \%statHash;
+                $shimTypeHash{'REGISTERED_NONE'}{'type'} = $comp;
+            }
+            
+        }
+        
+    }
+
+}
+    
+#
+# Generates xml from the data in the layer hashes
+#
+sub generate_xml
+{
+    # Create a new document xml ver=1.0 encoding=UTF-8
+    my $document = XML::LibXML::Document->new("1.0", "UTF-8");
+
+    # Create the root node
+    my $root = $document->createElement("statistics");
+    
+    # Add root node to the document
+    $document->setDocumentElement($root);
+    
+    # Go through each of the layer hashes and store elements
+    &generate_layer_xml($document, $root, \%phyTypeHash);
+    &generate_layer_xml($document, $root, \%macTypeHash);
+    &generate_layer_xml($document, $root, \%shimTypeHash);
+
+    if ($dtd)
+    {
+        print "\t- Setting DTD entry.\n" if $verbose;
+        # Create external subset (DTD) entry with a valid dtd path
+        my $dtdVal = $document->createInternalSubset("statistics", undef, "$dtd");
+    
+        # Validate
+        my $dtdY = XML::LibXML::Dtd->new("", "$dtd");
+        $document->validate($dtdY);
+
+        # If validation fails, no file will be written.
+        
+        print "\t- Validation complete.\n" if $verbose;
+    }
+    else
+    {
+        # If validation was not specified, set standalone to 'yes'
+        $document->setStandalone(1);
+
+        print "\t- Setting standalone to 'yes'.\n" if $verbose;
+    }
+    
+    # Save the document to file
+    $document->toFile("$xmlFile", 2);
+   
+
+}
+
+#
+# Generates layer-specific xml
+#
+sub generate_layer_xml
+{
+    my ($document, $root, $hashRef) = @_;
+
+    foreach my $key (sort(keys %{$hashRef}))
+    {
+        my $compEntry = $document->createElement("component");
+        
+        # name is "REGISTERED_EMANE_MAC_RF_PIPE"
+        $compEntry->setAttribute("name", $key);
+        
+        # registrationid is "3"
+        $compEntry->setAttribute("registrationid", $hashRef->{$key}{'value'}); 
+
+        # If there is no type, means we could not find a 'sendEvent' call
+        # (more-than-likely there are no stats defined for this layer)
+        my $attrType = 'NONE';
+        
+        if (!defined($hashRef->{$key}{'type'}))
+        {
+        
+            if ($key =~ /PHY/)
+            {
+                $attrType = 'COMPONENT_PHYILAYER';
+            }
+            elsif ($key =~ /MAC/)
+            {
+                $attrType = 'COMPONENT_MACILAYER';
+            }
+            elsif ($key =~ /SHIM/)
+            {
+                $attrType = 'COMPONENT_MACILAYER';
+            }
+
+            $hashRef->{$key}{'type'} = $attrType;
+            
+        }
+
+        $compEntry->setAttribute("type", $hashRef->{$key}{'type'});
+
+        # id is "100" (component_type id)
+        $compEntry->setAttribute("id", $compTypeHash{$hashRef->{$key}{'type'}}{'value'});
+
+        # Now go through all the stats
+
+        foreach (sort {$a <=> $b} (keys %{$hashRef->{$key}{'stats'}}))
+        {
+            my $statEntry = $document->createElement("statistic");
+            $statEntry->setAttribute("id", $_);
+            $statEntry->appendTextNode($hashRef->{$key}{'stats'}{$_});
+
+            # Add to parent
+            $compEntry->addChild($statEntry);
+        }
+        
+        # Add to root
+        $root->addChild($compEntry);
+    }
+
+}
+
+#
+# Prints out layer hash contents
+#
+sub dump_layer_hash
+{
+    my $hashRef = shift;
+
+    foreach my $key (sort(keys %{$hashRef}))
+    {
+        print "\t$key => $$hashRef{$key}{'value'}\n";
+        print "\t$key => $$hashRef{$key}{'type'}\n" if $$hashRef{$key}{'type'};
+
+        foreach (sort(keys %{$hashRef->{$key}{'stats'}}))
+        {
+            print "\t\t$_ :: $$hashRef{$key}{'stats'}{$_}\n";
+        }
+        
+
+    }
+
+
+}

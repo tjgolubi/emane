@@ -1,0 +1,357 @@
+#!/usr/bin/perl -w
+
+# Modules
+use strict;
+use Getopt::Long;
+use Geo::Coordinates::UTM;
+use XML::LibXML;
+
+# Constants 
+# none
+
+# Globals
+my %time_location_hash = ();
+my @output_files       = ();
+my $xml_output_file    = undef;
+my $current_arg        = 0;
+my $line_last_read     = 0;
+my $iteration          = 0;
+
+# Options
+my ($help, $schema_file, $start_time, $interval);
+
+# Get the options 
+&usage && exit(-1) unless GetOptions("schema=s"   => \$schema_file,
+                                     "stime=s"    => \$start_time,
+                                     "interval=i" => \$interval,
+                                     "help");
+
+# If someone needs help
+&usage && exit(1) if $help;
+
+# Mitre file needs to be specified
+&usage && exit(1) unless ($schema_file && @ARGV && $interval) ;
+
+# Autoflush stdout
+$| = 1;
+
+# Set start time if not specified
+unless ($start_time)
+{
+  # Forget about generating a start time here, the generator will do it
+#  $start_time = localtime;
+#  $start_time =~ s/(\S+\s+){3}(\d+\:\d+\:\d+)\s+.*/$2/;
+}
+
+print "Ready to proceed...\n";
+print "[] Total number of input files: " . scalar(@ARGV) . "\n";
+print "[] Maximum number of seconds in a file: $interval\n";
+print "[] Schema input file: $schema_file\n";
+print "[] Start Time: $start_time \n" if ($start_time);
+
+my $in_file = undef; #purely for visibility outside of the loop
+# Input files are specified on command line and in '@ARGV'
+while ($current_arg < scalar(@ARGV))
+{
+  print ".";
+  # Get input file
+  $in_file = $ARGV[$current_arg];
+
+  # Load its contents into the hash
+  $line_last_read = &load_mitre_file($in_file, 
+                                     \%time_location_hash, 
+                                     $interval,
+                                     $line_last_read);
+
+  if ($line_last_read != 0)
+  {
+    # End of interval reached before end of file
+
+    # Set output filename
+    $xml_output_file = &update_output_filename($in_file, $iteration++);
+
+    # Dump to file
+    &generate_emulation_xml($xml_output_file, \%time_location_hash);
+    
+    # Clear hash
+    &clear_hash(\%time_location_hash);
+
+    # No need to advance file, continue
+  }
+  else
+  {
+    # End of file reached before end of interval
+    # Move on to next file in '@ARGV'
+    ++$current_arg;
+  }
+
+}
+
+if (keys %time_location_hash)
+{
+  # Set output filename one last time
+  $xml_output_file = &update_output_filename($in_file, $iteration++);
+
+  # Dump the hash one last time
+  &generate_emulation_xml($xml_output_file, \%time_location_hash);
+}
+
+#print "\nTotal number of xml files generated: " . scalar(@output_files) . " (@output_files)\n";
+
+
+print " Done.\n";
+# Main control flow ends here
+
+# ---- SUBROUTINES --------- #
+#
+# Prints usage
+#
+sub usage
+{
+  print "Usage: $0 OPTION MITRE_FILEs\n";
+  print "Where:\n\n";
+  print "MITRE_FILEs               Specifies the name(s) of the file(s) with mitre\n";
+  print "                          mobility model to use as input. REQUIRED.\n";
+  print "And OPTION is one or more of:\n\n";
+  print "--interval INTERVAL       Specifies the amount of time (in seconds) to\n";
+  print "                          use in order to limit file size. REQUIRED.\n";
+  print "--schema SCHEMA_FILE      Specifies the name of the file with a schema\n";
+  print "                          to validate against. REQUIRED.\n";
+  print "--stime HH:MM:SS          Specifies the start time of the scenario in\n";
+  print "                          two-digit fomat (i.e. 13:04:27). OPTIONAL.\n";
+  print "--help                    Prints this screen and exits.\n";
+}
+
+#
+# Loads the contents of a mitre-mobility file into the passed-in hash
+#
+# param1: name of the mitre-mobility file
+# param2: reference to the time-location hash
+#
+sub load_mitre_file
+{
+  my ($pl_file, $time_hash_ref, $interval, $last_read_line) = @_;
+
+  # Open the file to get locations
+  open(LOC_FILE, "$pl_file") or die "Could not open $pl_file: $!";
+  
+  # Scan through the file line-by-line
+  my $current_time = undef;
+  my $current_node = undef;
+
+  my @file_contents = <LOC_FILE>;
+  my $current_line = $last_read_line;
+
+  # Trim the array accordint to what line we start at
+  splice(@file_contents, 0, $current_line);
+
+  my $interval_reached = 0;
+
+  foreach (@file_contents)
+  {
+    ++$current_line;
+
+    my ($time, $src, $dst, $pl, $rev_pl, $dist, $utmX_src, $utmY_src, $altX, $utmX_dst, $utmY_dst, $altY) = 
+      (/^(\d+)\s+(\d+)\s+(\d+)\s+(\d+\.\d+(\/\d+\.\d+)?)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/);
+    
+    $rev_pl = $pl unless $rev_pl;
+    
+    if ( !$current_time || ($time ne $current_time) )
+    {
+      # Calculate the modulus (to know when to stop)
+      my $mod = $time % $interval;
+      
+      # Special case with time == 0
+      $mod = -1 if ($time eq 0);
+
+      # If the new time is equal to interval, mark for breaking
+      if (($mod == 0) && !$interval_reached)
+      {
+        $interval_reached = 1;
+      }
+      elsif ($interval_reached && ($mod == 1))
+      {
+        # Break when reaching the time slot AFTER the interval
+        last;
+      }
+
+      $current_time = $time;
+      $current_node = undef;
+    }
+    
+    if ( !$current_node || ($current_node ne $src) )
+    {
+      $current_node = $src;
+      my ($lat,$lon) = utm_to_latlon('WGS-84', '18T', $utmX_src, $utmY_src);
+      
+      # Store the position in the global hash
+      $time_hash_ref->{$time}{$src}{'lat'} = $lat;
+      $time_hash_ref->{$time}{$src}{'lon'} = $lon;
+      $time_hash_ref->{$time}{$src}{'alt'} = $altX;
+
+      # Fill in the info for the destination
+      unless ($time_hash_ref->{$time}{$dst})
+      {
+        my ($dst_lat,$dst_lon) = utm_to_latlon('WGS-84', '18T', $utmX_dst, $utmY_dst);
+        
+        # Store the position in the global hash
+        $time_hash_ref->{$time}{$dst}{'lat'} = $dst_lat;
+        $time_hash_ref->{$time}{$dst}{'lon'} = $dst_lon;
+        $time_hash_ref->{$time}{$dst}{'alt'} = $altY;
+      }
+
+    }
+        
+  }
+
+  # Close the file
+  close(LOC_FILE);
+  
+  $current_line = 0 unless $interval_reached;
+
+  return $current_line;
+}
+
+#
+# Generates the Emulation xml
+#
+# param1: Name of the file to save xml data to
+# param2: Reference to the time-location hash
+#
+sub generate_emulation_xml
+{
+  my ($file, $hash_ref) = @_;
+
+#  print "Generating $file\n";
+
+  # Load schema first
+  my $schema = undef;
+  eval { $schema = XML::LibXML::Schema->new(location => $schema_file); };
+
+  # See if loading succeded
+  if ($@)
+  {
+    # Failed, print error
+    print $@;
+    print "Make sure $schema_file exists and is accessible for parsing\n";
+    exit(-1);
+  }
+ 
+  # Succeded, create document
+  my $doc = XML::LibXML::Document->new("1.0", "UTF-8");
+
+  my $root = $doc->createElementNS("", "EmulationScript");
+  
+  # Set root element
+  $doc->setDocumentElement($root);
+
+  # Add the xsi namespace
+  my $xsi_attr = $doc->createAttributeNS("http://www.w3.org/2001/XMLSchema-instance", 
+                                         "xsi:noNamespaceSchemaLocation",
+                                         "$schema_file");
+
+  $root->setAttributeNodeNS($xsi_attr);
+  
+  # Add start time if exists
+  if ($start_time)
+  {
+    my $start_time_node = $doc->createElement("startTime");
+    $start_time_node->appendText($start_time);
+    
+    # Add the node to the root element
+    $root->appendChild($start_time_node);
+  }
+
+  # This will now get tricky. For every entry in the time-location hash,
+  # an 'Event' entry needs to be created with the corresponding time.
+  # The 'Event' node will then contain a 'Node' entry for each of the 
+  # present nodes.
+  #
+  # NOTE: the attributes of these nodes are left at DEFAULTS. 
+  # TODO: update the attributes to correspond to value types
+  for my $event_time (sort { $a <=> $b } (keys %{$hash_ref}))
+  {
+    # First create the 'Event' node
+    my $event_node = $doc->createElement("Event");
+    
+    # Then create the 'time' element
+    my $time_node = $doc->createElement("time");
+    
+    # Add the time value to it
+    $time_node->appendText($event_time);
+
+    # Add the 'time' node to the 'Event' node
+    $event_node->appendChild($time_node);
+
+    # Create the 'Node' elements
+    for my $node_id (sort { $a <=> $b } (keys %{$hash_ref->{$event_time}}))
+    {
+      # Create the 'Node' element
+      my $node_node = $doc->createElement("Node");
+      
+      # Add the 'id' attribute to it
+      $node_node->setAttributeNodeNS($doc->createAttributeNS("", "id", $node_id));
+
+      # Create the 'location' element for this node
+      # Notice the LACK of the 'duration' attribute
+      my $location_node = $doc->createElement("location");
+      
+      my $lat = $hash_ref->{$event_time}->{$node_id}{'lat'};
+      my $lon = $hash_ref->{$event_time}->{$node_id}{'lon'};
+      my $alt = ($hash_ref->{$event_time}->{$node_id}{'alt'}) ? $hash_ref->{$event_time}->{$node_id}{'alt'} : "";
+
+      # Insert the location info into the 'location' Element
+      $location_node->appendText("$lat,$lon,$alt");
+      
+      # Add 'location' to the 'Node' element
+      $node_node->appendChild($location_node);
+
+      # Add the 'Node' node to the 'Event' element
+      $event_node->appendChild($node_node);
+    }
+
+    # Finally, add the 'Event' node to the root element
+    $root->appendChild($event_node);
+  }
+
+  # Validate
+  eval { $schema->validate($doc); };
+  if ($@)
+  {
+    print "Error: $@";
+  }
+
+  # Dump to file
+  $doc->toFile($file, 1);
+}
+
+#
+# Returns the name of the input file with the '.xml' extension
+#
+# param1: name of the input file
+#
+sub update_output_filename
+{
+  my ($filename, $iter) = @_;
+  
+  $iter = "0$iter" if ($iter < 10);
+
+  $filename =~ s/([^\d]+)\d+.*/$1$iter\.xml/;
+
+  # Save filename for later 
+  push (@output_files, $filename);
+
+  return $filename;
+}
+
+#
+# Resets the passed-in hash (clears contents from memory)
+#
+# param1: reference to hash to be cleared
+#
+sub clear_hash
+{
+  my $ref = shift;
+
+  %{$ref} = ();
+}

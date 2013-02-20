@@ -1,0 +1,22 @@
+<?xml encoding="UTF-8"?>
+
+<!ELEMENT ber (table*)>
+
+<!ELEMENT table (row*)>
+
+<!ATTLIST table 
+          minpktsize CDATA #REQUIRED
+          maxpktsize CDATA #REQUIRED
+          interval CDATA #REQUIRED>
+
+<!ELEMENT row (column*)>
+
+<!ATTLIST row
+          name CDATA #REQUIRED
+          value CDATA #REQUIRED>
+
+<!ELEMENT column (#PCDATA)>
+
+<!ATTLIST column
+          name CDATA #REQUIRED
+          value CDATA #REQUIRED>

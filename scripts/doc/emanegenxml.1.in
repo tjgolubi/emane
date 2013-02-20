@@ -1,0 +1,195 @@
+.TH emanegenxml 1 "@RELDATE@" "emanegenxml @VERSION@"
+.SH NAME
+emanegenxml - EMANE XML generator
+.SH SYNOPSIS
+emanegenxml [OPTIONS]... INPUTFILE
+.SH DESCRIPTON
+.P
+Application generates XML configuration file(s) required to configure an EMANE deployment.
+.SH OPTIONS
+.P
+The following options are supported:
+.TP
+.B \--help
+Print usage information and exit.
+.TP
+.B \--verbose
+Verbose output mode
+.TP
+.B \--transportdevicename NAME
+Name of the transport device.
+.br
+Default: emane0
+.TP
+.B \--platformportindex INDEX
+Platform NEM adapater port index
+.br
+Default: 40000
+.TP
+.B \--transportportindex INDEX
+Virtual transport port index
+.br
+Default: 50000
+.TP
+.B \--virtualaddressfunc FUNC
+Virtual device address function
+.br
+Default: '{my ($id) = @_; "172.30.1.$id";}'
+.TP
+.B \--platformaddressfunc FUNC
+Platform address function
+.br
+Default: '{my ($id) = @_; "localhost";}'
+.TP
+.B \--transportaddressfunc FUNC
+Virtual transport address function
+.br
+Default: '{my ($id) = @_; "localhost";}'
+.TP
+.B \--nemdefinitionxml FILE
+NEM XML definition file
+.br
+Default: rfpipenem.xml
+.TP
+.B \--nemnameprefix PREFIX
+NEM Name prefix
+.br
+Default: TN
+.TP
+.B \--otamanagergroup ADDR:PORT
+OTA Manager group endpoint
+.br
+Default: 224.1.2.8:45702
+.TP
+.B \--otamanagerdevice DEVICE
+OTA Manager multicast device
+.br
+Default: <none> Follow routing table.
+.TP
+.B \--eventservicegroup ADDR:PORT
+Event Service group endpoint
+.br
+Default: 224.1.2.8:45703
+.TP
+.B \--eventservicedevice DEVICE
+Event Service multicast device
+.br
+Default: <none> Follow routing table.
+.TP
+.B \--platformtag TAG
+Platform tag prefix for platform XML files
+.br
+Default: platform
+.TP
+.B \--dtdpath DTD
+Fully qualified DTD path
+.br
+Default: file://@datadir@/dtd
+.TP
+.B \--onlyplatform
+Only create platform XML.  Do not create transport and depolyment XML.
+.TP
+.B \--execprefix  EXECPREFIX
+Exec prefix to use for finding emane XML generation applications.
+.br
+Default: <none>
+.TP
+.B \--transportdefinitionxml FILE
+Transport XML definition file
+.br
+Default: transvirtual.xml
+.TP
+.B \--macdefinitionxml FILE
+MAC XML definition file
+.br
+Default: <nemdefinitionfile =~ s/nem/mac/>
+.TP
+.B \--phydefinitionxml FILE
+PHY XML definition file
+.br
+Default: <nemdefinitionfile =~ s/nem/phy/>
+.TP
+.B \--forcedistributed
+Ignore platform values and force distributed
+.TP
+.B \--showfunctionlibrary
+Print the function library and exit
+.TP
+.B \--novirtualaddress
+Do not create a virtual transport address parameter using the function defined in virtualaddressfunc
+.TP
+.B \--notransportdevice
+Do not create a transport device parameter using the value defined in transportdevicename
+.SH Example
+Example application command line:
+.nf
+
+emanegenxml genxmlinput.txt                                  \\
+ --otamanagerdevice eth0   --eventservicedevice eth1         \\
+ --platformaddressfunc  address_substitution:192.168.PPP.100 \\
+ --transportaddressfunc address_substitution:192.168.PPP.NNN \\
+ --virtualaddressfunc '{my($nem,$plat,$param) = @_; "10.$plat.$nem.2"}' \\
+ --verbose
+.fi
+.TP
+Input files consist of one NEM entry per line.  Each line has three fixes columns followed by 0 or more optional attribute and/or parameter definitions.  Column 1 is the NEM id.  Column 2 is the platform NEM server id.  Column 3 is a character string (no spaces allowed) parameter that is passed to the platformaddressfunc, transportaddressfunc, and virtualaddressfunc functions.
+.TP
+Attributes for NEMs, MACs, PHYs, and Transports can be set using to following syntax:
+.TP
+.B nem:<ATTRIBUTENAME>:<VALUE>
+Example: nem:definition:ieee80211agbnem.xml
+.TP
+.B mac:<ATTRIBUTENAME>:<VALUE>
+Example: mac:definition:ieee80211agbmac.xml
+.TP
+.B phy:<ATTRIBUTENAME>:<VALUE>
+Example: phy:definition:ieee80211agbphy.xml
+.TP
+.B transport:<ATTRIBUTENAME>:<VALUE>
+Example: transport:group:foo
+.TP
+Parameters for NEMs, MACs, PHYs, and Transports can be set using to following syntax:
+.TP
+.B nem:param:<PARAMETERNAME>:<VALUE>
+Example: nem:param:platformendpoint:192.168.70.18
+.TP
+.B mac:param:<PARAMETERNAME>:<VALUE>
+Example: mac:param:enablepromiscuousmode:on
+.TP
+.B phy:param:<PARAMETERNAME>:<VALUE>
+Example:  phy:param:frequency:3000000
+.TP
+.B transport:param:<PARAMETERNAME>:<VALUE>
+Example: transport:param:transportendpoint:192.168.70.18
+.nf
+.TP
+Example input file:
+
+.nf
+
+1     1     -   phy:param:frequency:3000000 
+2     1     -   phy:param:frequency:3000000 
+3     1     -   phy:param:frequency:3000000
+4     1     -   phy:param:frequency:3000000 transport:group:10
+5     1     -   transport:group:10 transport:param:device:emane1
+6     1     -   
+7     2     -
+8     2     -
+9     2     -  
+10    3     -
+
+.fi
+
+.SH VERSION
+@VERSION@
+.SH BUGS
+To report a bug, please send and email to <labs at cengen dot com>
+.SH SEE ALSO
+emanegentransportxml(1) emanegendeploymentxml(1) 
+.SH AUTHORS
+DRS CenGen, LLC Columbia, MD
+.br 
+http://cengen.com
+.SH NOTES
+.P
+EMANE is released under the BSD License.

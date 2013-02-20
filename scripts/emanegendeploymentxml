@@ -1,0 +1,255 @@
+#!/usr/bin/perl -w
+#
+# Copyright (c) 2008 - DRS CenGen, LLC, Columbia, Maryland
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# * Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# * Neither the name of DRS CenGen, LLC nor the names of its
+#   contributors may be used to endorse or promote products derived
+#   from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# The copyright holder hereby grants to the U.S. Government a copyright
+# license to use this computer software/computer software documentation
+# that is of the same scope as the rights set forth in the definition of
+# "unlimited rights" found in DFARS 252.227-7014(a)(15)(June 1995).
+#
+
+use XML::LibXML;
+use XML::LibXML::SAX::Parser;
+use Getopt::Long;
+use strict;
+
+use constant DEFAULT_DTD_FILE => "deployment.dtd";
+
+# Options
+my ($directoryPath, $outputPath, $dtdFile, $dtdPath, $debug, $help);
+
+GetOptions("inpath=s" => \$directoryPath,
+           "outpath=s" => \$outputPath, "dtd=s" => \$dtdFile, 
+           "dtdpath=s" => \$dtdPath, "debug" => \$debug, "help" => \$help);
+
+&usage && exit 0 if ($help);
+
+# Need to quit if both a list and a path (or neither) were specified
+&usage && exit 1 if ((@ARGV && $directoryPath) ||
+                     (!@ARGV && !$directoryPath));
+
+# Globals
+# Hash containing the deployment data
+my %deploymentHash = ();
+
+# Array with the actual files translated from cmd-line args
+my @actualFiles = ();
+
+# Set outputPath to current dir if it hasn't changed.
+$outputPath = "" unless $outputPath;
+
+# DTD file
+$dtdFile = DEFAULT_DTD_FILE unless ($dtdFile);
+
+# The parser
+my $parser = XML::LibXML->new();
+
+# -- Globals end here -- #
+
+# First, which file(s) do we parse?
+if (@ARGV) {
+    print "Number of entries in list is ". scalar(@$ARGV) . "\n" if $debug;
+    print "list is @$ARGV\n" if $debug;
+
+    @actualFiles = @ARGV;
+
+}
+elsif ($directoryPath) {
+    foreach (<$directoryPath/platform*.xml>) {
+        push(@actualFiles, $_);
+    }
+
+}
+
+# Get first of the actual files to check which system we're on
+# so that we can set the appropriate separator for the output path
+if ($actualFiles[0] =~ /((.*\\)+).*[^\.]\.xml/) {
+     $outputPath .= "\\" if $outputPath;
+    print "WINSUCK! => $outputPath\n" if $debug;
+}
+elsif ($actualFiles[0] =~ /((.*\/)+).*[^\.]\.xml/) {
+    $outputPath .= "\/" if $outputPath;
+    print "NORMAL! => $outputPath\n" if $debug;
+}
+
+# Run through the files in the array to fill up the hash
+&process_platform_files;
+
+# Hash is full, generate xml
+&generate_deployment_xml;
+
+&show_hash if $debug;
+
+print "--Done.\n";
+#>>>>Main path of execution ends here<<<<#
+
+#------SUBS START HERE-----#
+
+# Show how to use this script
+sub usage
+{
+    print "\nUsage: $0 OPTIONs [FILEs]\n";
+    print "\tWhere OPTION is one or more of:\n\n";
+    print "--inpath PATH_TO_DIR                      Specifies the directory with platformID.xml files to use\n";
+    print "\t\t\t\t\t\t(ID corresponds to a unique platform id).\n";
+    print "\tNOTE: The above option assumes no FILEs were specified on the command line.\n";
+    print "\t\tThe two are mutually exclusive.\n\n";
+    print "--outpath PATH_TO_DIR                     Specifies the directory where the deployment.xml file\n";
+    print "\t\t\t\t\t\tshould be placed.\n";
+    print "\t\t\tDefault: Current working directory.\n";
+    print "--dtd Filename                            Specifies the DTD file to validate against.\n";
+    print "\t\t\tDefault: ". DEFAULT_DTD_FILE ."\n";
+    print "--dtdpath PATH_TO_DIR                     Specifies the directory where the DTD file can be found.\n";
+    print "\t\t\tDefault: URI from the platform.xml's External Subset's SYSTEM Id\n";
+    print "--debug                                   Enables debug output at runtime.\n";
+    print "--help                                    Prints this screen and exits.\n";
+    print "\n";
+}
+
+#
+# Parse each of the platform files and store data in the deployment hash
+#
+sub process_platform_files
+{
+    # Use global parser to parse each of the files
+    # Parsing/Validation failures will kick us out of the script
+    foreach my $file (@actualFiles) {
+        print "[] Processing $file\n";
+        # Parse
+        my $doc = $parser->parse_file($file);
+
+        # DTD path, if not specified on the command line, use the file
+        # This will only be set based on the first file
+        unless ($dtdPath) {
+            $dtdPath = $doc->internalSubset()->systemId();
+            $dtdPath = $1 if ($dtdPath =~ /(.*\/)[^\/]+/);
+        }
+        
+        # First get platform id parameter
+        my $platformId = 0;
+        my $paramTree = $doc->find('//platform');
+        my @paramList = $paramTree->get_nodelist();
+        
+        print "WARNING: Expecting a single platform, found " . scalar(@paramList)
+            if (scalar(@paramList) > 1);
+
+        foreach (@paramList) {
+            $platformId = $_->getAttribute("id");
+            print "Platform ID: $platformId\n" if $debug;
+        }
+
+        # Have the platform id, now go through all nem's in the platform 
+        # and add to hash
+        my $nemTree = $doc->findnodes('//platform/nem');
+        foreach my $nem ($nemTree->get_nodelist) {
+            print "Nem Name: " . $nem->getAttribute("name") . " Nem ID: ". $nem->getAttribute("id")."\n"
+                if $debug;
+            
+            # Add to hash
+            push (@{$deploymentHash{$platformId}}, $nem->getAttribute("id"));
+        }
+
+
+    }# end foreach file
+}
+
+
+#
+# Generates the actual deployment file
+#
+sub generate_deployment_xml
+{
+    # Need to generate a single document for the entire hash
+    print "[] Generating " . $outputPath ."deployment.xml\n";
+
+    # Create a new document xml ver=1.0 encoding=UTF-8
+    my $document = XML::LibXML::Document->new("1.0", "UTF-8");
+
+    # Create the root node
+    my $root = $document->createElement("deployment");
+
+    # Add root node to the document
+    $document->setDocumentElement($root);
+
+    # Go through the hash and add each platform with its nem's
+    foreach my $platformId (sort {$a <=>$b } keys(%deploymentHash)) {
+        # Create a new platform element
+        my $platform = $document->createElement("platform");
+        
+        # Add the id attribute
+        $platform->setAttribute("id", "$platformId");
+
+        # Go through this platform's nem array
+        foreach (@{$deploymentHash{$platformId}}) {
+            # Create the 'nem' node
+            my $nem = $document->createElement("nem");
+
+            # Now create and add the attributes for the nem
+            $nem->setAttribute("id", "$_");
+
+            # Add the entry as the child of platform
+            $platform->addChild($nem);
+
+        }# end foreach nem entry
+        
+        # Add this platform as a child of root, and move to the next
+        $root->addChild($platform);
+    }    
+        
+    # Create external subset (DTD) entry with a valid dtd path
+    my $dtd = $document->createInternalSubset("deployment", undef, "$dtdPath"."$dtdFile");
+
+    # Validate
+    my $dtdY = XML::LibXML::Dtd->new("", "$dtdPath"."$dtdFile");
+    $document->validate($dtdY);
+
+    # If validation fails, no file will be written.
+    
+    # Save the document to file
+    $document->toFile("$outputPath"."deployment.xml", 1);
+    
+}
+
+
+#
+# Prints the hash to the screen (for debug only)
+#
+sub show_hash
+{
+    foreach my $key (keys %deploymentHash) {
+        print "Platform ID: $key\n";
+
+        foreach (@{$deploymentHash{$key}}) {
+            print "\tNEM ID: $_\n";
+        }
+    }
+
+}

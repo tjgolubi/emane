@@ -1,0 +1,962 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:ns="http://www.w3.org/1999/xhtml"
+           xmlns:hfp="http://www.w3.org/2001/XMLSchema-hasFacetAndProperty">
+
+  <xs:simpleType name="timeFormat">
+    <xs:annotation>
+      <xs:documentation>The "timeFormat" is an enumerated "xs:string" that is
+      used to indicate the format of the specified time/date within in the
+      string.</xs:documentation>
+    </xs:annotation>
+
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="secs">
+        <xs:annotation>
+          <xs:documentation>The "secs" format indicates the string contains an
+          xs:double value representing relative time in
+          seconds.</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+
+      <xs:enumeration value="chron">
+        <xs:annotation>
+          <xs:documentation>The "chron" format indicates the string contains a
+          chronographic time value of the "xs:duration" type (See below for a
+          description).</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+
+      <xs:enumeration value="clock">
+        <xs:annotation>
+          <xs:documentation>The "clock" format indicates the string contains a
+          clock time value of the "xs:time" type (See below for a
+          description).</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+
+      <xs:enumeration value="dateTime">
+        <xs:annotation>
+          <xs:documentation>The "dateTime" format indicates the string
+          contains a date &amp; time value of the "xs:dateTime" type (See
+          below for a description).</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="relTimeType">
+    <xs:annotation>
+      <xs:documentation>The "relTimeType" is used at various places in an
+      Emulation Script, most notably to indicate the scheduled "time" of an
+      Event. This type provides a choice of formats to express a "relative"
+      time value. The choices include an "xs:double" representing time in
+      seconds or "xs:duration" representing time in a chronographic
+      format.</xs:documentation>
+    </xs:annotation>
+
+    <xs:union>
+      <xs:simpleType>
+        <xs:annotation>
+          <xs:documentation>This form is used to indicate a relative time
+          instant (or duration) in units of seconds using a floating point
+          (xs:double) value.</xs:documentation>
+        </xs:annotation>
+
+        <xs:restriction base="xs:double"/>
+      </xs:simpleType>
+
+      <xs:simpleType>
+        <xs:annotation>
+          <xs:documentation>This form is used to describe a relative time
+          instant (or duration) using the chronographic "xs:duration"
+          annotation of "P[nY][nM][nD][T[nH][nM][n[.nnn]S]]" where: P denotes
+          a period (required), nY indicates 'n' years, nM indicates 'n'
+          months, nD indicates 'n' days, T indicates the start of a time
+          section (required if you are going to specify hours, minutes, or
+          seconds) nH indicates 'n' hours, nM indicates 'n' minutes, and
+          n[.nnn]S indicates 'n.nnn' seconds.</xs:documentation>
+        </xs:annotation>
+
+        <xs:restriction base="xs:duration"/>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+
+  <xs:simpleType name="absTimeType">
+    <xs:annotation>
+      <xs:documentation>The "absTimeType" is used at various places in an
+      Emulation Script, most notably to indicate the "time" of an Event. This
+      union provides a choice of formats to express an "absolute" time value
+      in "clock time" format or a more complete date/time (xs:dateTime)
+      annotation.</xs:documentation>
+    </xs:annotation>
+
+    <xs:union>
+      <xs:simpleType>
+        <xs:annotation>
+          <xs:documentation>This form is used to indicate an absolute clock
+          time in the format HH:MM:SS[.sss]. The 'hours', 'minutes', and
+          'seconds' fields MUST be specified as 2-digit integers (leading
+          zeroes as required) although the 'seconds' field can be extended
+          with a decimal point and additional digits to describe a floating
+          point value.</xs:documentation>
+        </xs:annotation>
+
+        <xs:restriction base="xs:time"/>
+      </xs:simpleType>
+
+      <xs:simpleType>
+        <xs:annotation>
+          <xs:documentation>This form is used to specify an absolute date and
+          time. The dateTime is specified in the following form
+          "YYYY-MM-DDThh:mm:ss" where: 'YYYY' indicates the year, 'MM'
+          indicates the month, and 'DD' indicates the day. T indicates the
+          start of the required time section where 'hh' indicates the hour,
+          'mm' indicates the minute, and 'ss' indicates the second (a decimal
+          point and digits may extend the 'ss' field to a float value). Note:
+          All components are required! To specify a time zone, you can either
+          enter a dateTime in UTC time by adding a "Z" at the end, or you can
+          specify an offset from the UTC time by adding a positive or negative
+          ({+|-}) "hh::mm" quantity at the end (e.g.,
+          "2008-09-21T21:43:00+05:00" for "21 Sept, 2008 9:43 PM
+          EST")</xs:documentation>
+        </xs:annotation>
+
+        <xs:restriction base="xs:dateTime"/>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+
+  <xs:simpleType name="timeType">
+    <xs:annotation>
+      <xs:documentation>The "timeType" is used at various places in an
+      Emulation Script, most notably to indicate the "time" of an Event. This
+      union is provided so that either relative or absolute time formats may
+      be used for this. However, it is RECOMMENDED that a consistent form
+      (relative or absolute) is used throughout the script. Note the optional
+      "startTime" element can be used to associate an absolute time with time
+      ZERO of the given script and thus it is further RECOMMENDED that scripts
+      be written using relative time values and the "startTime" element used
+      as needed to anchor the execution of the script to a specific absolute
+      time when necessary.</xs:documentation>
+    </xs:annotation>
+
+    <xs:union>
+      <xs:simpleType>
+        <xs:restriction base="relTimeType"/>
+      </xs:simpleType>
+
+      <xs:simpleType>
+        <xs:restriction base="absTimeType"/>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+
+  <xs:simpleType name="coordinateType">
+    <xs:annotation>
+      <xs:documentation>This restriction pattern restricts the value to a
+      comma-delimited duple or optionally triple set of floating point
+      ordinates (i.e. "x,y[,z]") that are used for GPS ("lat,lon[,alt]") or
+      Cartesian coordinates to delineate locations in our scripts. It would be
+      nice to do range checking here, but I'm not sure we can go quite that
+      far with a regex ;-).</xs:documentation>
+    </xs:annotation>
+
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\W*([\-\+]?[0-9]*\.?[0-9]+([eE][\-\+]?[0-9]+)?)\W*,\W*([\-\+]?[0-9]*\.?[0-9]+([eE][\-\+]?[0-9]+)?)\W*(,\W*([\-\+]?[0-9]*\.?[0-9]+([eE][\-\+]?[0-9]+)?))?\W*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="geometryType">
+    <xs:annotation>
+      <xs:documentation>The "geomeryType" is an enumerated "xs:string" that is
+      used to indicate the type of coordinate system that is used in the
+      specification of a location. The default is "gps" (Global Positioning
+      System format of "latitude, longitude[, altitude]" where latitude and
+      longitude are given in degrees as a floating point
+      value).</xs:documentation>
+    </xs:annotation>
+
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="gps">
+        <xs:annotation>
+          <xs:documentation>"gps" (Global Positioning System) geodetic format
+          of "latitude,longitude[,altitude]" where latitude and longitude are
+          given in degrees as a floating point value and the "altitude" is
+          optional.</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+
+      <xs:enumeration value="cartesian">
+        <xs:annotation>
+          <xs:documentation>Arbitrary Cartesian coordinates in the format of
+          "x,y[,z]" using floating point values for the coordinates and the
+          'z' axis optional.</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="locationType">
+    <xs:simpleContent>
+      <xs:extension base="coordinateType">
+        <xs:attribute default="gps" name="type" type="geometryType"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:simpleType name="velocityUnits">
+    <xs:annotation>
+      <xs:documentation>The "velocityUnits" type is an enumerated "xs:string"
+      that is used to specify the "units" attribute of elements that contain
+      velocity information. The default is "m/s" (meters per
+      second).</xs:documentation>
+    </xs:annotation>
+
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="m/s">
+        <xs:annotation>
+          <xs:documentation>meters per second</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+
+      <xs:enumeration value="kph">
+        <xs:annotation>
+          <xs:documentation>kilometers per hour</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+
+      <xs:enumeration value="mph">
+        <xs:annotation>
+          <xs:documentation>miles per hour</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="velocityType">
+    <xs:annotation>
+      <xs:documentation>The "velocityType" is used to specify velocity of
+      motion. It is expected to be re-used within multiple motion types as
+      this schema is extended.</xs:documentation>
+    </xs:annotation>
+
+    <xs:simpleContent>
+      <xs:extension base="xs:double">
+        <xs:attribute default="m/s" name="units" type="velocityUnits"
+                      use="optional"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:simpleType name="distanceUnits">
+    <xs:annotation>
+      <xs:documentation>The "distanceUnits" type is an enumerated "xs:string"
+      that is used to specify the "units" attribute of elements that contain
+      distance information. The default is "meters".</xs:documentation>
+    </xs:annotation>
+
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="meters"/>
+
+      <xs:enumeration value="kilometers"/>
+
+      <xs:enumeration value="feet"/>
+
+      <xs:enumeration value="miles"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="positiveFloat">
+    <xs:restriction base="xs:double">
+      <xs:minInclusive value="0.0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="distanceType">
+    <xs:annotation>
+      <xs:documentation>The "distanceType" is used to specify distance as
+      non-negative floating point value. It includes a "units" attributes
+      (default is "meters") that gives the units of value. It is expected to
+      be re-used within multiple motion types as this schema is
+      extended.</xs:documentation>
+    </xs:annotation>
+
+    <xs:simpleContent>
+      <xs:extension base="positiveFloat">
+        <xs:attribute default="meters" name="units" type="distanceUnits"
+                      use="optional"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:attributeGroup name="motionAttrGroup">
+    <xs:annotation>
+      <xs:documentation>The "motionAttrGroup" provides a common set of
+      attributes for our various EmulationScript motion property types and
+      MotionPlan motion primitives. The attribute group currently consists of
+      the optional "duration" attribute that allows a maximum time duration
+      limit be applied to the subject motion specification. The "duration"
+      attribute is principally expected to be used in MotionPlan
+      documents.</xs:documentation>
+    </xs:annotation>
+
+    <xs:attribute name="duration" type="relTimeType">
+      <xs:annotation>
+        <xs:documentation>The "duration" time allows that a specific, limiting
+        time interval restriction be applied upon the prior specified motion
+        "pattern" or primitive. If/when the specified "duration" time expires,
+        the previous motion is terminated and a transition to the subsequent
+        motion pattern or primitive should be generated. If no subsequent
+        motion is given, then motion is halted. If the motion completes before
+        the "duration" time expires, then motion should be halted for the
+        remaining time interval. (TBD - do we need to specify a variation of
+        "duration" that is strictly a max time limit. I.e., proceed to next
+        motion when prior motion completes even if "duration" time hasn't
+        expired???)</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:attributeGroup>
+
+  <xs:element name="location">
+    <xs:complexType>
+      <xs:complexContent>
+        <xs:extension base="locationType">
+          <xs:attributeGroup ref="motionAttrGroup"/>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:group name="simpleMotionGroup">
+    <xs:annotation>
+      <xs:documentation>The "simpleMotionGroup" provides a choice of basic
+      motion type elements that can be used to generate different patterns of
+      motion. Currently "waypoint" and "circle" motion types are defined. In
+      the future, additional types of motion patterns may be
+      added.</xs:documentation>
+    </xs:annotation>
+
+    <xs:choice>
+      <xs:element ref="location"/>
+
+      <xs:element name="waypoint">
+        <xs:annotation>
+          <xs:documentation>The "waypoint" motion type is a simple
+          specification of a destination "location" and a "velocity" used to
+          move there. Implementations that support this motion type are
+          RECOMMENDED to halt motion when the waypoint destination is reached
+          (and no other overriding motion specification event is given
+          beforehand).</xs:documentation>
+        </xs:annotation>
+
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="destination" type="locationType"/>
+
+            <xs:element name="velocity" type="velocityType"/>
+          </xs:sequence>
+
+          <xs:attributeGroup ref="motionAttrGroup"/>
+        </xs:complexType>
+      </xs:element>
+
+      <xs:element name="vector">
+        <xs:annotation>
+          <xs:documentation>The "vector" motion type is a simple specification
+          of "velocity", an "azimuth" angle ("bearing") in degrees, and
+          optionally, an "elevation" angle (also in degrees. The indicated
+          "vector" motion implemented (movement at the specified velocity in
+          the specified direction) is observed until it is superseded by
+          another motion type.</xs:documentation>
+        </xs:annotation>
+
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="velocity" type="velocityType"/>
+
+            <xs:element name="azimuth">
+              <xs:simpleType>
+                <xs:restriction base="xs:double">
+                  <xs:minExclusive value="-360.0"/>
+
+                  <xs:maxInclusive value="360.0"/>
+                </xs:restriction>
+              </xs:simpleType>
+            </xs:element>
+
+            <xs:element minOccurs="0" name="elevation">
+              <xs:simpleType>
+                <xs:restriction base="xs:double">
+                  <xs:minInclusive value="-90.0"/>
+
+                  <xs:maxInclusive value="90.0"/>
+                </xs:restriction>
+              </xs:simpleType>
+            </xs:element>
+          </xs:sequence>
+
+          <xs:attributeGroup ref="motionAttrGroup"/>
+        </xs:complexType>
+      </xs:element>
+
+      <xs:element name="circle">
+        <xs:annotation>
+          <xs:documentation>The “circle” motion type describes a circular path
+          around a center location with a fixed radius and altitude (if
+          applicable) at a fixed velocity. The “circle” motion type parameter
+          elements include: 1) “center” location coordinates with optional
+          altitude/height ( If the altitude is omitted, this implies the
+          motion follows any applicable terrain), 2) “radius” of the circle in
+          units of meters, 3) “velocity of motion (default units of meters per
+          second) where a positive “velocity” implies a clockwise direction
+          (as viewed from a higher altitude looking downard) and a negative
+          “velocity” is used to specify a counter-clockwise direction, and 4)
+          an optional "revs" element that specifies the number of of circle
+          revolutions to complete before the execution of this motion pattern
+          is considered complete. The intended interpretation of this motion
+          type is that the node will follow the circular path continuously at
+          the given “velocity” until the "revs" count (if given) is completed
+          or the motion is superseded with a different motion (or fixed
+          location) property in the script. The required “motion:location”
+          element accompanying the “circle” motion specification MUST be a
+          point that is consistent (valid) with respect to the specified
+          circle and serves as the starting point of the circular motion. The
+          motion should halt when the "revs" is completed, similar to when a
+          "waypoint:destination" is reached. Note the "circle:revs" is a
+          floating point value so that partial revolutions may be specified.
+          The default negative (less than zero) "circle:revs" value indicates
+          the circle motion should continue indefinitely until its motion is
+          superseded with a different motion (or fixed location) property in
+          the script.</xs:documentation>
+        </xs:annotation>
+
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element minOccurs="0" name="center" type="locationType"/>
+
+            <xs:element name="radius" type="distanceType"/>
+
+            <xs:element name="velocity" type="velocityType"/>
+
+            <xs:element default="-1.0" minOccurs="0" name="revs"
+                        type="xs:double"/>
+          </xs:sequence>
+
+          <xs:attributeGroup ref="motionAttrGroup"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:choice>
+  </xs:group>
+
+  <xs:group name="complexMotionGroup">
+    <xs:annotation>
+      <xs:documentation>The "complexMotionGroup" defines some additional,
+      well, more complex motion types. In some cases these complex motion
+      types depend on our simple motion types.</xs:documentation>
+    </xs:annotation>
+
+    <xs:choice>
+      <xs:element name="hover">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:choice>
+              <xs:annotation>
+                <xs:documentation>The simple motion type or "location"
+                specified here defines the motion (or not) of the center about
+                which the circular hover motion occurs. Also in the case that
+                the "hover" element is in a MotionPlan, it may alternatively
+                reference a "pattern" by name (previously defined with a
+                MotionPlan PatternDefinition) instead of a "location" or other
+                motion type.</xs:documentation>
+              </xs:annotation>
+
+              <xs:group ref="simpleMotionGroup"/>
+
+              <xs:element ref="pattern">
+                <xs:annotation>
+                  <xs:documentation>The "pattern" element complexType is
+                  defined later below.</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+            </xs:choice>
+
+            <xs:element minOccurs="0" name="center" type="locationType">
+              <xs:annotation>
+                <xs:documentation>The "center" specifies the _initial_
+                location around which the "hover" motion begins. Note that
+                this "center" location MUST be "radius" (see below) distance
+                from initial "location" given for the hover motion pattern
+                when part of an emulation script Node:motion
+                specification.</xs:documentation>
+              </xs:annotation>
+            </xs:element>
+
+            <xs:element name="velocity" type="velocityType">
+              <xs:annotation>
+                <xs:documentation>The "velocity" specifies the speed of the
+                circular motion aspect of the hover motion. Note that with the
+                combination of the reference motion velocity and the hover
+                motion velocity specified here, the resultant motion velocity
+                will be variable as movement proceeds.</xs:documentation>
+              </xs:annotation>
+            </xs:element>
+
+            <xs:element name="radius" type="distanceType">
+              <xs:annotation>
+                <xs:documentation>The "radius" specifies the distance from the
+                center (of the above referenced motion or location) at which
+                the hover motion occurs.</xs:documentation>
+              </xs:annotation>
+            </xs:element>
+
+            <xs:element default="0.0" minOccurs="0" name="height"
+                        type="distanceType">
+              <xs:annotation>
+                <xs:documentation>The optional "height" specifies a relative
+                altitude offset from the hover center location. Note the
+                "height" may be a positive or negative number. The default for
+                this is '0.0' height offset.</xs:documentation>
+              </xs:annotation>
+            </xs:element>
+          </xs:sequence>
+
+          <xs:attributeGroup ref="motionAttrGroup"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:choice>
+  </xs:group>
+
+  <xs:group name="motionGroup">
+    <xs:annotation>
+      <xs:documentation>The "motionGroup" includes all of both our simple and
+      complex motion types we have defined.</xs:documentation>
+    </xs:annotation>
+
+    <xs:choice>
+      <xs:group ref="simpleMotionGroup"/>
+
+      <xs:group ref="complexMotionGroup"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:complexType name="locamotionType">
+    <xs:annotation>
+      <xs:documentation>The "locamotionType" is not a popular dance but
+      instead is a complex type consisting of a concatenation of a "location"
+      and a choice of "motion" types. This schema uses this type to enforce
+      the requirement that when motion is described, a current location MUST
+      also accompany the "motion" specification. The current "location" given
+      implicitly serves as the starting point for the indicated motion and
+      SHOULD be a valid location corresponding to the given motion specified.
+      The second part of this complexType specifies one of a number of types
+      of motion. For example, the supported "waypoint" type of motion
+      specifies a "destination" and the "velocity" while traveling there. The
+      schema will be extended to add descriptions of additional, possibly more
+      complex or formulaic motion types in the future.</xs:documentation>
+    </xs:annotation>
+
+    <xs:sequence>
+      <xs:element ref="location"/>
+
+      <xs:group ref="motionGroup"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="nodeType">
+    <xs:annotation>
+      <xs:documentation>The "nodeType" is used to described atributes for
+      "Node" events. A "Node" corresponds to a virtual entity in the emulation
+      environment that has "location/motion" and possibly other properties.
+      The "id" attribute of this element type is an xs:string that identifies
+      the node.</xs:documentation>
+    </xs:annotation>
+
+    <xs:all>
+      <xs:element minOccurs="0" ref="location"/>
+
+      <xs:element minOccurs="0" name="motion" type="locamotionType"/>
+    </xs:all>
+
+    <xs:attribute name="id" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="EmulationScript">
+    <xs:annotation>
+      <xs:documentation>The "EmulationScript" element is the root element of
+      an Emulation Script document. This element contains a list of Events
+      where each Event has a timestamp and one or more emulation module
+      elements (e.g. "Node") containing module properties that are to be set or
+      updated at the given Event time.</xs:documentation>
+    </xs:annotation>
+
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="0" name="startTime">
+          <xs:annotation>
+            <xs:documentation>The optional EmulationScript "startTime" element
+            is used associate a given absolute time ("xs:time" or
+            "xs:dateTime") with relative time ZERO. This option allows the
+            script execution to be anchored to an absolute time reference,
+            even when the script events are denoted with relative time
+            values.</xs:documentation>
+          </xs:annotation>
+
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="absTimeType">
+                <xs:attribute default="clock" name="type" type="timeFormat"/>
+              </xs:extension>
+            </xs:simpleContent>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element maxOccurs="unbounded" minOccurs="0" name="Event">
+          <xs:annotation>
+            <xs:documentation>The Event element contains a timestamp that
+            indicates when the Event contents are to be executed. In addition
+            to the timestamp, the Event contains one or more emulation
+            "module" event sub-types that convey module properties that are to
+            be set or updated to given values at the given Event
+            time.</xs:documentation>
+          </xs:annotation>
+
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="time">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="timeType">
+                      <xs:attribute default="secs" name="type"
+                                    type="timeFormat"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+
+              <xs:choice maxOccurs="unbounded">
+                <xs:element name="Node" type="nodeType"/>
+              </xs:choice>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="pattern">
+    <xs:complexType>
+      <xs:annotation>
+        <xs:documentation>The "pattern" text content should identify the name
+        of a motion pattern that was previously defined using the
+        "PatternDefinition" element. The "name" attribute of the
+        PatternDefinition identifies the name of the pattern defined. Note
+        that a "pattern" element itself is a legitimate sub-element of a
+        "PatternDefinition". This allows complex motion patterns to be built
+        up and re-used within a "MotionPlan" The "repeat" attribute of the
+        "pattern" specifies how many times that pattern should be repeated as
+        the motion is sequenced. The default "repeat" value of '0' (zero)
+        indicates the pattern is executed once while a negative value
+        indicates the pattern should be repeated
+        indefinitely.</xs:documentation>
+      </xs:annotation>
+
+      <xs:simpleContent>
+        <xs:extension base="xs:string">
+          <xs:attribute default="0" name="repeat" type="xs:integer"/>
+
+          <xs:attributeGroup ref="motionAttrGroup"/>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:simpleType name="randpointModeType">
+    <xs:annotation>
+      <xs:documentation>The "randpointModeType" is an enumerated "xs:string"
+      that is used to indicate the behavior mode of random waypoint or
+      location generation</xs:documentation>
+    </xs:annotation>
+
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="variable">
+        <xs:annotation>
+          <xs:documentation>"variable" indicates that a waypoint with a fresh
+          destination should be generated each time the randpoint is
+          encountered within a MotionPlan.</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+
+      <xs:enumeration value="fixed">
+        <xs:annotation>
+          <xs:documentation>"variable" indicates that fresh destination should
+          be generated ONLY the first time the randpoint is encountered within
+          a MotionPlan. On any subsequent encounters, the initially generated
+          waypoint destination will be re-used, but perhaps with different
+          velocity depending upon the time and speed bounds of the associated
+          RandpointGenerator.</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+
+      <xs:enumeration value="instant">
+        <xs:annotation>
+          <xs:documentation>Indicates that a "location" should be generated to
+          which a node instantly "teleports" instead of a waypoint. Note that
+          an "instant" randpoint MAY be used as a Node's initial location
+          instead of the "location" element if desired.</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="randpoint">
+    <xs:complexType>
+      <xs:annotation>
+        <xs:documentation>The "randpoint" text content should identify the
+        name of a RandpointGenerator that was previously defined. As with
+        other motion primitive elements, the "duration" attribute is available
+        to set a time limit on the waypoint motion that is randomly generated.
+        The "randpoint" also has an additional "seed" attribute that can be
+        used to explicity seed the associated RandpointGenerator before the
+        generation of the corresponding waypoint. This allows repeatable
+        behavior to be planned. For example, a "pattern" of random waypoints
+        will repeat the same motion if the first "randpoint" specifies a
+        seed.</xs:documentation>
+      </xs:annotation>
+
+      <xs:simpleContent>
+        <xs:extension base="xs:string">
+          <xs:attribute name="seed" type="xs:nonNegativeInteger"/>
+
+          <xs:attribute default="variable" name="mode"
+                        type="randpointModeType"/>
+
+          <xs:attributeGroup ref="motionAttrGroup"/>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:group name="patternGroup">
+    <xs:annotation>
+      <xs:documentation>The "patternGroup" consists of the set of element
+      types that comprise our set of primitive motion types. A concatenation
+      of these primitive motion types can be used to generate a series of
+      "EmulationScript:Events" with "Node:motion" properties corresponding to
+      the desired motion pattern. The "MotionPlan:Node" element has a required
+      initial "location" element that is used along with an optional
+      "offsetTime" value (default is 0.0 sec) to provide a starting point/time
+      for the motion events generated. The primitive motion elements have a
+      "duration" attribute that can be set to limit the specific amount of
+      time spent performing the corresponding motion. A "duration" value of
+      "-1.0" (or any negative value) indicates that the motion primitive is
+      observed indefinitely. If the "duration" attribute is omitted, the rule
+      is that a motion pattern is fully "completed" (i.e. a waypoint
+      destination reached, specified number of circle revolutions completed,
+      etc) before transitioning to the subsequent motion primitive. The
+      condition of motion completion is specified for each motion type. Note
+      that some motion types may have no specific completion condition and
+      thus the "duration" attribute MUST be applied to limit the time spent
+      performing the corresponding motion action. The "pause" element in this
+      "patternGroup" allow additional control/pacing of the concatenated set
+      of motion primitives. The current motion primitives include: "location",
+      "waypoint", and "circle". Their purpose is described below. Both the
+      "duration" and "pause" time can pace the transition from one motion
+      primitive to the next. The transition used is a linear traversal to the
+      subsequent motion pattern using that subsequent target pattern's
+      "velocity" (if applicable). More details on the RECOMMENDED traversal
+      procedure for each motion primitive are given below.</xs:documentation>
+    </xs:annotation>
+
+    <xs:choice>
+      <xs:group ref="motionGroup">
+        <xs:annotation>
+          <xs:documentation>The emulation script "motionGroup" is used both as
+          the set of "MotionPlan" motion pattern primitives and to describe
+          the "EmulationScript:Event:Node:motion" element motion type and
+          parameters. For the use in the "MotionPlan" that is used to generate
+          a set of Node mobility events for an "EmulationScript",specific
+          behaviors must be described for transitioning from one motion
+          primitive to the next. There are two elements currently included in
+          the "motionGroup" including the "waypoint" and "circle" motion
+          types. The transition to a waypoint is relatively obvious. A
+          "waypoint" motion pattern is established to the given
+          "waypoint:destination" at the "waypoint:velocity" from the last
+          location of the the previous motion. Transitioning to the "circle"
+          motion from a previous location requires that an intermediate
+          "waypoint" motion be generated to transition to a location on the
+          circle's perimeter. The RECOMMENDED approach for this is to
+          establish a direct route (great circle route when GPS geometry is
+          used) from the last motion location towards the "circle:center" to a
+          point that intersects the circle perimeter path. This intersecting
+          location will serve as the initial location for the circle motion.
+          In the case that the previous location is _within_ the circle's
+          radius, then an intermediate waypoint specifying direct (shortest)
+          route to the circle perimeter SHOULD be generated. The "velocity"
+          for these intermediate waypoint transitions SHOULD be that specified
+          for the circle motion (i.e. "circle:velocity"). And, as noted below,
+          the time required to complete the transition SHOULD be considered
+          part of any maximum motion pattern "duration" time succeeding the
+          circle motion specification.</xs:documentation>
+        </xs:annotation>
+      </xs:group>
+
+      <xs:element ref="pattern">
+        <xs:annotation>
+          <xs:documentation>The "pattern" element is used to refer to a set of
+          motion primitives that was previously defined with the
+          "PatternDefinition" construct described below. The text content of
+          the "pattern" gives the name of the previously-defined pattern and
+          the optional "repeat" attribute allows that some number of
+          repetitions of the sequence of motion primitives comprising the
+          given "pattern" be specified.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <xs:element name="pause" type="relTimeType">
+        <xs:annotation>
+          <xs:documentation>The "pause" element allows the motion planner to
+          specify a pause time (interval of time where motion is halted)
+          before transitioning to the subsequent motion primitive. If a motion
+          primitive precedes the "pause" element, that motion must be fully
+          completed before the "pause" interval is
+          observed.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:choice>
+  </xs:group>
+
+  <xs:element name="PatternDefinition">
+    <xs:annotation>
+      <xs:documentation>The "PatternDefinition" enables a MotionPlan to define
+      a motion sequence (pattern) and assign a name to it. Then, the named
+      pattern can be referred to (by name) and re-used for multiple nodes. For
+      example, a motion path can be defined and multiple nodes with different
+      "offsetTime" values can re-use the same motion path once defined (i.e.
+      multiple nodes following th same path). Similarly, the
+      Node:patternOffset is applied when patterns are used in the node's
+      motion sequence. This enables multiple nodes to use the same motion
+      pattern with different location offsets and move as a group. (TBD - we
+      could also create a Node:patternVariance that could randomly dither a
+      given potion for a little more stoichastic mobile group behavior?) It is
+      also important to note that a PatternDefinition may contain one or more
+      references to other previously-defined "patterns" as part of its
+      definition (i.e., the definition itself may include a mix of motion
+      primitives and other patterns).</xs:documentation>
+    </xs:annotation>
+
+    <xs:complexType>
+      <xs:group maxOccurs="unbounded" ref="patternGroup"/>
+
+      <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="LocationDefinition">
+    <xs:annotation>
+      <xs:documentation>The "LocationDefinition" here is defined to allow a
+      name string to be associated with a specific location. Although not
+      currently used/implemented, this would allow locations to be referenced
+      by name so that simply changing the LocationDefinition coordinate values
+      could relatively easily re-locate one or more given
+      MotionPlans.</xs:documentation>
+    </xs:annotation>
+
+    <xs:complexType>
+      <xs:complexContent>
+        <xs:extension base="locationType">
+          <xs:attribute name="name" type="xs:string"/>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="MotionPlan">
+    <xs:annotation>
+      <xs:documentation>The "MotionPlan" is intended to be the root element of
+      a document that allows simple description of complex motion through use
+      of the motion primitives and pattern definition mechanism specified in
+      this schema. A single MotionPlan can contain motion sequences for
+      multiple "nodes". The intent of this schema is for it to be used to
+      generate the EmulationScript:Events that dynamically set "Node:motion"
+      properties. The MotionPlan more loosely specifies motion on a nodal
+      basis as a sequence of motion elements where the EmulationScript is a
+      tighter specification of time-sequenced events with richer information
+      regarding nodes' specific location/motion at the event times. The
+      current MotionPlan definition includes motion primitives that are based
+      on absolute coordinates. It is possible that future versions will
+      provide motion primitives that express motion patterns using relative
+      (e.g. bearing) parameters as well.</xs:documentation>
+    </xs:annotation>
+
+    <xs:complexType>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element ref="PatternDefinition"/>
+
+        <xs:element name="RandpointGenerator">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element minOccurs="0" name="seed"
+                          type="xs:nonNegativeInteger">
+                <xs:annotation>
+                  <xs:documentation>If specified, the random waypoint
+                  generator will be seeded with the specific seed value at
+                  initialization. Note that MotionPlan elements that use
+                  RandpointGenerator instances _may_ also reseed the generator
+                  to get certain repeated behaviors (e.g. a repeatable Pattern
+                  of random waypoints). The "seed" is optional and a default
+                  value (1) is used if omitted.</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+
+              <xs:element name="minLocation" type="locationType"/>
+
+              <xs:element name="maxLocation" type="locationType"/>
+
+              <xs:element minOccurs="0" name="minVelocity" type="velocityType"/>
+
+              <xs:element minOccurs="0" name="maxVelocity" type="velocityType"/>
+
+              <xs:element minOccurs="0" name="minTime" type="relTimeType"/>
+
+              <xs:element minOccurs="0" name="maxTime" type="relTimeType"/>
+            </xs:sequence>
+
+            <xs:attribute name="name" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="Node">
+          <xs:annotation>
+            <xs:documentation>The MotionPlan:Node element assigns the enclosed
+            motion sequence to a Node instance identified by its "id"
+            attribute value. First, the Node has an optional "offsetTime"
+            element that can be used to indicate the start time in the
+            resultant emulation script for the Node:motion events. Secondly,
+            the Node has a required "location" element that specifies the
+            initial location of the Node (at the given "offsetTime" if
+            applicable). Then, the Node has its motion sequence specified by a
+            concatenated set of motion primitive and/or pattern
+            elements.</xs:documentation>
+          </xs:annotation>
+
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element minOccurs="0" name="offsetTime" type="relTimeType"/>
+
+              <xs:element ref="location"/>
+
+              <xs:choice maxOccurs="unbounded" minOccurs="0">
+                <xs:group ref="patternGroup"/>
+              </xs:choice>
+            </xs:sequence>
+
+            <xs:attribute name="id" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

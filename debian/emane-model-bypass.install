@@ -1,0 +1,3 @@
+/usr/lib/libbypass*
+/usr/share/doc/emane-model-bypass/*
+/usr/share/emane/models/bypass/xml/*

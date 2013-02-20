@@ -1,0 +1,72 @@
+.TH emanegendeploymentxml 1 "@RELDATE@" "emanegendeploymentxml @VERSION@"
+.SH NAME
+emanegendeploymentxml - EMANE deployment XML generator
+.SH SYNOPSIS
+emanegendeploymentxml [OPTIONS]... URIs
+.SH DESCRIPTON
+.P
+Application scans through the supplied platform configuration XML file(s) to generate a single XML file which maps Network Emulation Modules (NEMs) to their corresponding platform. The file is then used by emane for inter-platform network addressing.
+.SH OPTIONS
+.P
+The following options are supported:
+.TP
+.B \URIs
+URI of one (or more) XML files containing the NEM configuration for the platform.
+.TP
+.B \--inpath LOCATION
+Specifies the location containing XML with NEM configuration for the platform which uses the platformPID.xml format (where PID corresponds to a unique platform identifier). NOTE: This option assumes that NO files (URIs) were specified on the command line. The two are mutually exclusive.
+.TP
+.B \--outpath LOCATION
+Specifies output location for generated deployment XML file.
+.br
+Default: current working directory
+.TP
+.B \--dtdpath LOCATION
+Specifies the location of the directory containing DTDs
+.br
+Default: directory in the SYSTEM declaration in platform URI
+.TP
+.B \--dtd DTD
+Specifies the DTD file to validate against
+.br
+Default: deployment.dtd
+.TP
+.B \--debug
+Enable debug output
+.TP
+.B \--help
+Print usage information and exit.
+.SH Example
+Example application command line:
+.RS
+emanegendeploymentxml /var/www/html/xml/platform.xml
+.RE
+.P
+Example deployment XML output:
+.RS
+.nf
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE deployment SYSTEM "file://@datadir@/dtd/deployment.dtd">
+<deployment>
+  <platform id="1">
+    <nem id="1"/>
+    <nem id="3"/>
+  </platform>
+</deployment>
+
+.fi
+.RE
+.SH VERSION
+@VERSION@
+.SH BUGS
+To report a bug, please send and email to <labs at cengen dot com>
+.SH SEE ALSO
+emane(1)
+.SH AUTHORS
+DRS CenGen, LLC Columbia, MD
+.br 
+http://cengen.com
+.SH NOTES
+.P
+EMANE is released under the BSD License.

@@ -1,0 +1,3 @@
+/usr/lib/libphyapitest*
+/usr/share/doc/emane-model-phyapitest/*
+/usr/share/emane/shims/phyapitest/xml/*

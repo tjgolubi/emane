@@ -1,0 +1,4 @@
+/usr/bin/emaneeventd
+/usr/share/doc/emane-eventdaemon/*
+/usr/share/emane/src/emaneeventd/xml/*
+/usr/share/man/man1/emaneeventd.1

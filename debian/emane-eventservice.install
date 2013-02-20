@@ -1,0 +1,4 @@
+/usr/bin/emaneeventservice
+/usr/share/doc/emane-eventservice/*
+/usr/share/emane/services/eventserver/xml/*
+/usr/share/man/man1/emaneeventservice.1

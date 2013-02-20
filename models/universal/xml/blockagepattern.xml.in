@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE antennaprofile SYSTEM "file://@datadir@/dtd/universalphyantennaprofile.dtd">
+
+<antennaprofile>
+  <blockagepattern>
+    <elevation     min='-90' max='90'>
+      <bearing     min='0'   max='180'>
+        <gain      value='0'/>
+      </bearing>
+      <bearing     min='181'   max='359'>
+        <gain      value='-30'/>
+      </bearing>
+    </elevation>
+  </blockagepattern>
+</antennaprofile>
+

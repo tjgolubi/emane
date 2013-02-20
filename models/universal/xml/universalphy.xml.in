@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE phy SYSTEM "file://@datadir@/dtd/phy.dtd">
+<phy name="universalphy" library="universalphylayer">
+    <param name="antennagain"                     value="0.0"/>
+    <param name="antennaazimuth"                  value="0.0"/>
+    <param name="antennaelevation"                value="0.0"/>
+    <param name="antennaprofileid"                value="1"/>
+    <param name="antennaprofilemanifesturi"       value="antennaprofiles"/>
+    <param name="antennaprofileenable"            value="off"/>
+    <param name="bandwidth"                       value="1M"/>
+    <param name="defaultconnectivitymode"         value="on"/>
+    <param name="frequency"                       value="2.347G"/>
+    <param name="frequencyofinterest"             value="2.347G"/>
+    <param name="frequencyofinterestfilterenable" value="on"/>
+    <param name="noiseprocessingmode"             value="off"/>
+    <param name="pathlossmode"                    value="pathloss"/>
+    <param name="systemnoisefigure"               value="4.0"/>
+    <param name="subid"                           value="1"/>
+    <param name="txpower"                         value="0.0"/>
+</phy>
+

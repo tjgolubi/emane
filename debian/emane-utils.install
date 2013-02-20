@@ -1,0 +1,14 @@
+/usr/bin/emaneconvertdtdpath
+/usr/bin/emanegendeploymentxml
+/usr/bin/emanegenstatisticsrequest
+/usr/bin/emanegenstatisticsxml
+/usr/bin/emanegentransportxml
+/usr/bin/emanegenxml
+/usr/bin/emaneloglevel
+/usr/share/doc/emane-utils/*
+/usr/share/man/man1/emanegendeploymentxml.1
+/usr/share/man/man1/emanegenstatisticsrequest.1
+/usr/share/man/man1/emanegenstatisticsxml.1
+/usr/share/man/man1/emanegentransportxml.1
+/usr/share/man/man1/emanegenxml.1
+/usr/share/man/man1/emaneloglevel.1

@@ -1,0 +1,6 @@
+emane (@VERSION@-1) stable; urgency=low
+
+    [ CenGen Labs ]
+    * For a complete changelog see the ChangeLog file in the /usr/share/doc/ directory.
+
+ -- Cengen Labs <labs@cengen.com>  Thu, 05 Aug 2010 08:47:45 -0400

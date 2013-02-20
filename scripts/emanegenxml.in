@@ -1,0 +1,562 @@
+#!/usr/bin/perl -w
+#
+# Copyright (c) 2009 - DRS CenGen, LLC, Columbia, Maryland
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# * Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# * Neither the name of DRS CenGen, LLC nor the names of its
+#   contributors may be used to endorse or promote products derived
+#   from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# The copyright holder hereby grants to the U.S. Government a copyright
+# license to use this computer software/computer software documentation
+# that is of the same scope as the rights set forth in the definition of
+# "unlimited rights" found in DFARS 252.227-7014(a)(15)(June 1995).
+#
+
+use Getopt::Long;
+use XML::Simple;
+use File::Spec;
+
+use strict;
+
+use constant DEFAULT_TRANSPORT_DEVICE_NAME    => 'emane0';
+use constant DEFAULT_PLATFORM_PORT_INDEX      => 40000;
+use constant DEFAULT_TRANSPORT_PORT_INDEX     => 50000;
+use constant DEFAULT_VIRTUAL_ADDRESS_FUNC     => '{my ($id) = @_; "172.30.1.$id";}';
+use constant DEFAULT_PLATFORM_ADDRESS_FUNC    => '{my ($id) = @_; "localhost";}';
+use constant DEFAULT_TRANSPORT_ADDRESS_FUNC   => '{my ($id) = @_; "localhost";}';
+use constant DEFAULT_NEM_DEFINITION_XML       => 'rfpipenem.xml';
+use constant DEFAULT_NEM_NAME_PREFIX          => 'TN';
+use constant DEFAULT_OTA_MANAGER_GROUP        => '224.1.2.8:45702';
+use constant DEFAULT_OTA_MANAGER_DEVICE       => undef;
+use constant DEFAULT_EVENT_SERVICE_GROUP      => '224.1.2.8:45703';
+use constant DEFAULT_EVENT_SERVICE_DEVICE     => undef;
+use constant DEFAULT_PLATFORM_TAG             => 'platform';
+use constant DEFAULT_DTD_PATH                 => 'file://@datadir@/emane/dtd';
+use constant DEFAULT_TRANSPORT_DEFINITION_XML => 'transvirtual.xml';
+use constant DEFAULT_EXEC_PREFIX              => undef;
+
+my $help;
+my $verbose;
+my $forcedistributed;
+my $onlyplatform;
+my $macdefinitionxml;
+my $phydefinitionxml;
+my $showfunctionlibrary;
+my $novirtualaddress;
+my $notransportdevice;
+my $transportdevicename    = DEFAULT_TRANSPORT_DEVICE_NAME;
+my $platformportindex      = DEFAULT_PLATFORM_PORT_INDEX;
+my $transportportindex     = DEFAULT_TRANSPORT_PORT_INDEX;
+my $virtualaddressfunc     = DEFAULT_VIRTUAL_ADDRESS_FUNC;
+my $platformaddressfunc    = DEFAULT_PLATFORM_ADDRESS_FUNC;
+my $transportaddressfunc   = DEFAULT_TRANSPORT_ADDRESS_FUNC;
+my $nemdefinitionxml       = DEFAULT_NEM_DEFINITION_XML;
+my $otamanagergroup        = DEFAULT_OTA_MANAGER_GROUP;
+my $otamanagerdevice       = DEFAULT_OTA_MANAGER_DEVICE;
+my $eventservicegroup      = DEFAULT_EVENT_SERVICE_GROUP;
+my $eventservicedevice     = DEFAULT_EVENT_SERVICE_DEVICE;
+my $platformtag            = DEFAULT_PLATFORM_TAG;
+my $dtdpath                = DEFAULT_DTD_PATH;
+my $nemnameprefix          = DEFAULT_NEM_NAME_PREFIX;
+my $transportdefinitionxml = DEFAULT_TRANSPORT_DEFINITION_XML;
+my $execprefix             = DEFAULT_EXEC_PREFIX;
+
+
+&usage and exit 1 unless 
+  GetOptions(
+             'help'                     =>\$help,
+             'verbose'                  =>\$verbose,
+             'transportdevicename=s'    =>\$transportdevicename,
+             'platformportindex=i'      =>\$platformportindex,
+             'transportportindex=i'     =>\$transportportindex,
+             'virtualaddressfunc=s'     =>\$virtualaddressfunc,
+             'platformaddressfunc=s'    =>\$platformaddressfunc,
+             'transportaddressfunc=s'   =>\$transportaddressfunc,
+             'nemdefinitionxml=s'       =>\$nemdefinitionxml,
+             'nemnameprefix=s'          =>\$nemnameprefix,
+             'otamanagergroup=s'        =>\$otamanagergroup,
+             'otamanagerdevice=s'       =>\$otamanagerdevice,
+             'eventservicegroup=s'      =>\$eventservicegroup,
+             'eventservicedevice=s'     =>\$eventservicedevice,
+             'forcedistributed'         =>\$forcedistributed,
+             'platformtag=s'            =>\$platformtag,
+             'dtdpath=s'                =>\$dtdpath,
+             'transportdefinitionxml=s' =>\$transportdefinitionxml,
+             'onlyplatform'             =>\$onlyplatform,
+             'execprefix=s'             =>\$execprefix,
+             'macdefinitionxml=s'       =>\$macdefinitionxml,
+             'phydefinitionxml=s'       =>\$phydefinitionxml,
+             'showfunctionlibrary'      =>\$showfunctionlibrary,
+             'novirtualaddress'         =>\$novirtualaddress,
+             'notransportdevice'        =>\$notransportdevice,
+            );
+
+&usage and exit 0 if $help;
+
+my $functionlibrary = &load_function_library();
+
+&show_func_library($functionlibrary) and exit 0 
+  if $showfunctionlibrary;
+
+die "Missing input file(s).\n" unless @ARGV;
+
+unless($macdefinitionxml)
+{
+  $macdefinitionxml = $nemdefinitionxml;
+  $macdefinitionxml =~ s/nem/mac/;
+}
+
+unless($phydefinitionxml)
+{
+  $phydefinitionxml = $nemdefinitionxml;
+  $phydefinitionxml =~ s/nem/phy/;
+}
+
+my @platformaddressfuncparams;
+my @transportaddressfuncparams;
+my @virtualaddressfuncparams;
+
+# load address functions - checking for libary function references
+&load_address_func(\$platformaddressfunc,\@platformaddressfuncparams);
+&load_address_func(\$transportaddressfunc,\@transportaddressfuncparams);
+&load_address_func(\$virtualaddressfunc,\@virtualaddressfuncparams);
+
+my @nem;
+my %platform;
+
+#
+# 'ZZ0_param' is used to ensure param elements are listed first in
+# the XMLout output.  After which they are substituted with 'param'
+#
+
+for my $conf (@ARGV)
+{
+  open CONF, " $conf"
+    or warn "Unable to open $conf.  Skipping\n" and next;
+
+  while(<CONF>)
+  {
+    # remove any comments
+    s/^([^\#]*)\#.*/$1/;
+      
+    # trim white space
+    s/^\s*(.*?)\s*$/$1/;
+      
+    # remove multiple spaces
+    s/\s+/ /g;
+      
+    # process all non blank lines
+    unless(/^\s*$/)
+    {
+      if(/^(\d+) (\d+) ([^\s]+)\s*(.*)$/)
+      {
+        my ($nemid,$platformid,$paramater,$remainder) = ($1,$2,$3,$4);
+
+        # create platformaddress from func
+        @_ = ($nemid,$platformid,$paramater,@platformaddressfuncparams);
+        
+        my $platformaddress = scalar(eval $platformaddressfunc);
+
+        die "Error detected during execution of 'platformaddressfunc'.\n" if $@;
+
+        # create transportaddress from func
+        @_ = ($nemid,$platformid,$paramater,@transportaddressfuncparams);
+        
+        my $transportaddress = scalar(eval $transportaddressfunc);
+
+        die "Error detected during execution of 'transportaddressfunc'.\n" if $@;
+
+        # create virtualaddress from func
+        @_ = ($nemid,$platformid,$paramater,@virtualaddressfuncparams);
+        
+        my $virtualaddress = scalar(eval $virtualaddressfunc);
+
+        die "Error detected during execution of 'virtualaddressfunc'.\n" if $@;
+
+        my %nemparam;
+        my %additionalparam;
+        my %additionalattrib;
+        my %nemattrib;
+        
+        $nemparam{platformendpoint} = 
+          $platformaddress .':' . scalar($platformportindex + $nemid);
+        
+        $nemparam{transportendpoint} = 
+          $transportaddress . ':' . scalar($transportportindex + $nemid);
+
+        
+        $additionalparam{ZZ3_transport}{device} =$transportdevicename
+          unless $notransportdevice;
+
+        $additionalparam{ZZ3_transport}{address}=$virtualaddress
+          unless $novirtualaddress;
+       
+        for(split(/ +/,$remainder))
+        {
+          if(/(mac|phy|transport):param:([^:]+):(.+)$/)
+          {
+            my $c = $1;
+
+            $c = sprintf("ZZ%d_%s",$1 eq 'mac' ? 1 : $1 eq 'phy' ? 2 : 3,$1);
+
+            $additionalparam{$c}{$2}=$3;
+          }
+          elsif(/(mac|phy|transport):([^:]+):(.+)$/)
+          {
+            my $c = $1;
+
+            $c = sprintf("ZZ%d_%s",$1 eq 'mac' ? 1 : $1 eq 'phy' ? 2 : 3,$1);
+            
+            $additionalattrib{$c}{$2}=$3;
+          }
+          elsif(/nem:param:([^:]+):(.+)$/)
+          {
+            $nemparam{$1}=$2;
+          }
+          elsif(/nem:([^:]+):(.+)$/)
+          {
+            $nemattrib{$1}=$2;
+          }
+          else
+          {
+            die "Invalid syntax: $conf:$.near '$remainder'.\n";
+          }
+        }
+
+        my $nemref =
+        {
+         name       => sprintf("%s-%03d",$nemnameprefix,$nemid),
+         id         => $nemid,
+         definition => $nemdefinitionxml,
+        };
+
+        for my $attrib (keys %nemattrib)
+        {
+          $nemref->{$attrib} = $nemattrib{$attrib}; 
+        }
+
+        for my $param (keys %nemparam)
+        {
+          push @{$nemref->{ZZ0_param}},
+          {
+           name  => $param,
+           value => $nemparam{$param},
+          };
+        }
+            
+        push @{$platform{$platformid}}, $nemref;
+
+        for my $nemcomponent (keys %additionalparam)
+        {
+          unless (defined($nemref->{$nemcomponent}{definition}))
+          {
+            my $def = $transportdefinitionxml;
+
+            if($nemcomponent =~ /mac/)
+            {
+              $def = $macdefinitionxml;
+            }
+            elsif($nemcomponent =~ /phy/)
+            {
+              $def = $phydefinitionxml;
+            }
+            
+            $nemref->{$nemcomponent}{definition}=$def;
+          }
+             
+          for my $param (keys %{$additionalparam{$nemcomponent}})
+          {
+            push @{$nemref->{$nemcomponent}{ZZ0_param}},
+            {
+             name  => $param,
+             value => $additionalparam{$nemcomponent}{$param},
+            };
+          }
+        }
+        
+        for my $nemcomponent (keys %additionalattrib)
+        {
+          unless (defined($nemref->{$nemcomponent}{definition}))
+          {
+            my $def = $transportdefinitionxml;
+
+            if($nemcomponent =~ /mac/)
+            {
+              $def = $macdefinitionxml;
+            }
+            elsif($nemcomponent =~ /phy/)
+            {
+              $def = $phydefinitionxml;
+            }
+            
+            $nemref->{$nemcomponent}{definition}= $def;
+          }
+          
+          for my $attrib (keys %{$additionalattrib{$nemcomponent}})
+          {
+            $nemref->{$nemcomponent}{$attrib}=$additionalattrib{$nemcomponent}{$attrib};
+          }
+        }
+      }
+      else
+      {
+        die "Invalid syntax: $conf:$.\n";
+      }
+    }
+  }
+}
+
+my @platformfiles;
+
+sub create_platform
+{
+  my ($id,$nemlist) = @_;
+  
+  my $xs = XML::Simple->new(
+                            RootName => 'platform',
+                           );
+  my %platformxml =
+    (
+     name      => "Platform $id",
+     id        => $id,
+     ZZ0_param => [
+                   {
+                    name  => 'otamanagergroup',
+                    value => $otamanagergroup,
+                   },
+                   {
+                    name  => 'eventservicegroup',
+                    value => $eventservicegroup,
+                   },
+                  ],
+    );
+
+   if($otamanagerdevice)
+   {
+     push @{$platformxml{ZZ0_param}},
+     {
+      name  => 'otamanagerdevice',
+      value => $otamanagerdevice,
+     };
+   }
+  
+  if($eventservicedevice)
+  {
+    push @{$platformxml{ZZ0_param}},
+    {
+     name  => 'eventservicedevice',
+     value => $eventservicedevice,
+    };
+  }
+
+  $platformxml{nem} = $nemlist;
+
+  my $xml = $xs->XMLout(\%platformxml);
+  
+  $xml =~ s/ZZ\d+_//g;
+  
+  my $xmloutput = sprintf("${platformtag}-%03d.xml",$id);
+  
+  print "creating $xmloutput...\n" if $verbose;
+
+  open XML, "> $xmloutput"
+    or die "Unable to create platform XML output file: $xmloutput.\n";
+  
+  print XML '<?xml version="1.0" encoding="UTF-8"?>',"\n";
+  print XML "<!DOCTYPE platform SYSTEM \"$dtdpath/platform.dtd\">","\n";
+  print XML $xml;
+  
+  close XML;  
+
+  return $xmloutput;
+}
+
+if($forcedistributed)
+{
+  for my $plat (keys %platform)
+  {
+    for my $nem (@{$platform{$plat}})
+    {
+      push @platformfiles, &create_platform($nem->{id},[$nem]);
+    }
+  }
+}
+else
+{
+  for my $plat (sort {$a<=> $b} keys %platform)
+  {
+    push @platformfiles, &create_platform($plat,$platform{$plat});
+  }
+}
+
+unless($onlyplatform)
+{
+  print "creating trasport XML...\n" if $verbose;
+
+  my $emanegentransportxml = 'emanegentransportxml';
+  
+  $emanegentransportxml = File::Spec->catfile($execprefix,$emanegentransportxml) 
+    if $execprefix;
+ 
+  if($^O eq "MSWin32")
+  {
+    system("perl " . $emanegentransportxml . " " . join(" ",@platformfiles) . " > emanegentransportxml.log 2>&1 ");
+  }
+  else
+  {
+    system($emanegentransportxml . " " . join(" ",@platformfiles) . " &> emanegentransportxml.log");
+  }
+  
+  die "Error while generating transport XML. See 'emanegentransportxml.log'.\n" if($? >>8);
+  
+  print "creating deployment XML...\n" if $verbose;
+
+  my $emanegendeploymentxml = 'emanegendeploymentxml';
+
+  $emanegendeploymentxml = File::Spec->catfile($execprefix,$emanegendeploymentxml) 
+    if $execprefix;
+  
+  if($^O eq "MSWin32")
+  {
+    system("perl " . $emanegendeploymentxml . " "  . join(" ",@platformfiles) . " > emanegendeploymentxml.log 2>&1");
+  }
+  else
+  {
+    system($emanegendeploymentxml . " "  . join(" ",@platformfiles) . " &> emanegendeploymentxml.log");
+  }
+  
+  die "Error while generating deployment XML. See 'emanegendeploymentxml.log'.\n" if($? >>8);
+  
+  unlink 'emanegentransportxml.log', 'emanegendeploymentxml.log';
+}
+
+exit 0;
+
+sub load_function_library
+{
+  return
+  {
+   address_substitution => 
+   {
+    function =>
+    '{
+       my ($id,$plat,$param,$address) = @_;
+       $address =~ s/NNN/$id/g;
+       $address =~ s/PPP/$plat/g;
+       return $address;
+    }',
+    params=> 1,
+   }
+  };
+}
+
+sub load_address_func
+{
+  my ($reffunc,$refparams) = @_;
+    
+  my ($func,@params) = split(/:/,$$reffunc);
+
+  if(defined($functionlibrary->{$func}))
+  {
+    $$reffunc = $functionlibrary->{$func}{function};
+
+    @$refparams = @params;
+
+    die "Error.  Function '$func' requires $functionlibrary->{$func}{params} parameter(s).\n"
+      if($functionlibrary->{$func}{params} != scalar(@params));
+  }
+}
+
+sub show_func_library
+{
+  my ($libraryref) = @_;
+
+  for my $func (keys %$libraryref)
+  {
+    print "$func:\n    $libraryref->{$func}{function}\n";
+  }
+
+  1;
+}
+
+sub usage
+{
+  print "\n";
+  print "usage: emanegenxml [OPTIONS]... CONF...\n";
+  print "\n";
+  print "options:\n";
+  print " --help                         Print this usage and exit\n";
+  print " --verbose                      Verbose output mode\n";
+  print " --transportdevicename DEVICE   Name of transport device\n";
+  print "                                 Default: ",DEFAULT_TRANSPORT_DEVICE_NAME,"\n";
+  print " --platformportindex INDEX      Platform NEM adapater port index\n";
+  print "                                 Default: ",DEFAULT_PLATFORM_PORT_INDEX,"\n";
+  print " --transportportindex INDEX     Virtual transport port index\n";
+  print "                                 Default: ",DEFAULT_TRANSPORT_PORT_INDEX,"\n";
+  print " --virtualaddressfunc FUNC      Virtual device address function\n";
+  print "                                 Default: ", DEFAULT_VIRTUAL_ADDRESS_FUNC,"\n";
+  print " --platformaddressfunc FUNC     Platform address function\n";
+  print "                                 Default: ",DEFAULT_PLATFORM_ADDRESS_FUNC,"\n";
+  print " --transportaddressfunc FUNC    Virtual transport address function\n";
+  print "                                 Default: ",DEFAULT_TRANSPORT_ADDRESS_FUNC,"\n";
+  print " --nemdefinitionxml FILE        NEM XML definition file\n";
+  print "                                 Default: ",DEFAULT_NEM_DEFINITION_XML,"\n";
+  print " --nemnameprefix PREFIX         NEM Name prefix\n";
+  print "                                 Default: ",DEFAULT_NEM_NAME_PREFIX,"\n";
+  print " --otamanagergroup ADDR:PORT    OTA Manager group endpoint\n";
+  print "                                 Default: ",DEFAULT_OTA_MANAGER_GROUP,"\n";
+  print " --otamanagerdevice DEVICE      OTA Manager multicast device\n";
+  print "                                 Default: <none> Follow routing table.\n";
+  print " --eventservicegroup ADDR:PORT  Event Service group endpoint\n";
+  print "                                 Default: ",DEFAULT_EVENT_SERVICE_GROUP,"\n";
+  print " --eventservicedevice DEVICE    Event Service multicast device\n";
+  print "                                 Default: <none> Follow routing table.\n";
+  print " --platformtag TAG              Platform tag prefix for platform XML files\n";
+  print "                                 Default: ",DEFAULT_PLATFORM_TAG,"\n";
+  print " --dtdpath DTD                  Fully qualified DTD path\n";
+  print "                                 Default: ",DEFAULT_DTD_PATH,"\n";
+  print " --onlyplatform                 Only create platform XML.  Do not create\n";
+  print "                                 transport and depolyment XML.\n";
+  print " --execprefix  EXECPREFIX       Exec prefix to use for finding emane XML\n";
+  print "                                 generation applications.\n";
+  print "                                 Default: <none>\n";
+  print " --transportdefinitionxml FILE  Transport XML definition file\n";
+  print "                                 Default: ",DEFAULT_TRANSPORT_DEFINITION_XML,"\n";
+  print " --macdefinitionxml FILE        MAC XML definition file\n";
+  print "                                 Default: <nemdefinitionfile =~ s/nem/mac/>\n";
+  print " --phydefinitionxml FILE        PHY XML definition file\n";
+  print "                                 Default: <nemdefinitionfile =~ s/nem/phy/>\n";
+  print " --forcedistributed             Ignore platform values and force distributed\n";
+  print " --showfunctionlibrary          Print the function library and exit\n";
+  print " --novirtualaddress             Do not create a transport address param using\n";
+  print "                                 'virtualaddressfunc'\n";
+  print " --notransportdevice            Do not create a transport device param using\n";
+  print "                                 the 'transportdevicename'\n";
+  print "\n";
+}
+
+__END__

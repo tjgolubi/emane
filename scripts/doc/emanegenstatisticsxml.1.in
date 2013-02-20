@@ -1,0 +1,102 @@
+.TH emanegenstatisticsxml 1 "@RELDATE@" "emanegenstatisticsxml @VERSION@"
+.SH NAME
+emanegenstatisticsxml - EMANE platform application
+.SH SYNOPSIS
+emanegenstatisticsxml [REQUIRED OPTIONS]... [OPTIONS]... LOCATION
+.SH DESCRIPTON
+.P
+Application generates an XML file with mapping of statistics entries to their corresponding ids. The generated file can then be used with emanegenstatisticsrequest to receive and display (or save) statistics from all currently running NEMs.
+.SH REQUIRED OPTIONS
+.P
+The following options are required:
+.TP
+.B \--mac MAC
+Specifies the location and name of the MAC layer registration ids.
+.TP
+.B \--phy PHY
+Specifies the location and name of the PHY layer registration ids.
+.TP
+.B \--component COMPONENT
+Specifies the location and name of the COMPONENT type ids.
+.TP
+.B \ LOCATION
+Specifies the location of the root of the EMANE source tree.
+.br
+.SH OPTIONS
+.P
+The following options are supported:
+.TP
+.B \--shim SHIM
+Specifies the location and name of the SHIM layer registration ids.
+.TP
+.B \--statfile STATFILE
+Specifies the name of the statistics definitions file.
+.br
+Default: statdefs.h
+.TP
+.B \--xml XML
+Specifies the file name of the XML file to save output in.
+.TP
+.B \--dtd DTD
+Specifies the DTD file to validate against.
+.br
+Default: None.
+.TP
+.B \--verbose
+Enable verbose output.
+.TP
+.B \--help
+Print usage information and exit.
+.SH Example
+Example application command line:
+.RS
+emanegenstatisticsxml --mac /home/Trees/emane_latest/include/emane/emanemactypes.h \\
+                      --phy /home/Trees/emane_latest/include/emane/emanephytypes.h \\
+                      --comp /home/Trees/emane_latest/include/emane/emaneeventserviceprovider.h \\
+                      /home/Trees/emane_latest \\
+                      --xml woot.xml
+.RE
+.P
+Example statistics XML output:
+.RS
+.nf
+
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<statistics>
+  <component name="REGISTERED_EMANE_PHY_BYPASS" registrationid="1" type="COMPONENT_PHYILAYER" id="101"/>
+  <component name="REGISTERED_EMANE_PHY_IEEE_802_11_ABG" registrationid="3" type="COMPONENT_PHYILAYER" id="101">
+    <statistic id="1">Downstream packets received</statistic>
+    <statistic id="2">Downstream packets sent</statistic>
+    <statistic id="3">Upstream packets received</statistic>
+    <statistic id="4">Upstream packets sent</statistic>
+    <statistic id="5">Downstream packets dropped due to TXBUSY</statistic>
+    <statistic id="6">Downstream packets dropped due to TXPENDING</statistic>
+    <statistic id="7">Downstream packets dropped due to RXBUSY</statistic>
+    <statistic id="8">Downstream packets dropeed due to invalid Control Message</statistic>
+    <statistic id="9">Upstream packets dropped due to RSSI below noise floor</statistic>
+    <statistic id="10">Upstream packets dropped due to being considered noise</statistic>
+  </component>
+  <component name="REGISTERED_EMANE_MAC_BYPASS" registrationid="1" type="COMPONENT_MACILAYER" id="201"/>
+  <component name="REGISTERED_EMANE_MAC_IEEE_802_11_ABG" registrationid="3" type="COMPONENT_MACILAYER" id="201">
+    <statistic id="1">Channel busy during transmit state</statistic>
+    <statistic id="2">Channel busy during defer state</statistic>
+    <statistic id="3">Channel busy during contention state</statistic>
+    <statistic id="4">Valid SOTs for TxUnspecified</statistic>
+  </component>
+</statistics>
+
+.fi
+.RE
+.SH VERSION
+@VERSION@
+.SH BUGS
+To report a bug, please send and email to <labs at cengen dot com>
+.SH SEE ALSO
+emane(1) emanegenstatisticsrequest(1) 
+.SH AUTHORS
+DRS CenGen, LLC Columbia, MD
+.br 
+http://cengen.com
+.SH NOTES
+.P
+EMANE is released under the BSD License.

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE eventgenerator SYSTEM "file://@datadir@/dtd/eventgenerator.dtd">
+<eventgenerator name="antennaprofilegenerator" library="antennaprofilegenerator">
+  <param name="inputfileformat" value="/var/www/html/xml/antennaprofile/antenna_profile_%02d.txt"/>
+  <param name="inputfilecount" value="1"/>
+  <param name="totalnodes" value="3"/>
+  <param name="repeatcount" value="1"/>
+</eventgenerator>

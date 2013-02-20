@@ -1,0 +1,121 @@
+Source: emane
+Section: unknown
+Priority: extra
+Maintainer: CenGen Labs <labs@cengen.com>
+Build-Depends: debhelper (>= 7), autotools-dev
+Standards-Version: 3.8.3
+Homepage: http://labs.cengen.com/emane
+
+Package: emane
+Architecture: any
+Depends: ace (>= 6.1.0),libxml2,libxml-simple-perl,libxml-libxml-perl,${shlibs:Depends}, ${misc:Depends}
+Description: EMANE is an Extendable Mobile Ad-hoc Network Emulator that allows for heterogeneous network emulation using a pluggable MAC and PHY layer architecture.
+
+Package: emane-dev
+Section: libdevel
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description: Headers necessary to build EMANE network emulation modules
+
+Package: emane-model-rfpipe
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0), ${shlibs:Depends}, ${misc:Depends}
+Description: EMANE RF Pipe MAC layer
+
+Package: emane-model-ieee80211abg
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0), ${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE 802.11abg MAC layer
+
+Package: emane-model-bypass
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0), ${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE Bypass MAC layer
+
+Package: emane-model-phyapitest
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0), ${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE PHY API Test Shim layer
+
+Package: emane-model-universal
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0), ${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE Universal PHY Layer
+
+
+Package: emane-agent-gpsdlocation
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0), ${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE gpsd location agent translates location events into NEMA strings and transmits them to gpsd via a pseudo terminal device
+
+Package: emane-dtds
+Section: extra
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE DTDs required for EMANE XML.
+
+Package: emane-eventdaemon
+Section: binary
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE event daemon forwards events to registered agents.
+
+Package: emane-eventservice
+Section: binary
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE event service creates and manages event generators.
+
+Package: emane-gen-emulationscript
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE pathloss and location event generator using NRL EmulationScriptSchema mobility format input
+
+Package: emane-gen-mitremobility
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE pathloss and location event generator using Mitre mobility model format input.
+
+Package: emane-gen-antennaprofile
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE antenna profile event generator.
+
+Package: emane-libs
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE libraries required for components
+
+Package: emane-transportdaemon
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE transport daemon.  Creates and manages one or more transports
+
+Package: emane-trans-raw
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE raw transport.  Uses raw IP to create a network layer entry point for the NEM stack.
+
+Package: emane-trans-virtual
+Section: libs
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE virtual transport.  Uses tun device to create a network layer entry point for the NEM stack.
+
+Package: emane-utils
+Section: extra
+Architecture: any
+Depends: ace (>= 6.1.0),${shlibs:Depends}, ${misc:Depends}
+Description:  EMANE utilities

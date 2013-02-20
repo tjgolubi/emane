@@ -1,0 +1,388 @@
+#!/usr/bin/perl -w
+#
+# Copyright (c) 2008 - DRS CenGen, LLC, Columbia, Maryland
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# * Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# * Neither the name of DRS CenGen, LLC nor the names of its
+#   contributors may be used to endorse or promote products derived
+#   from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# The copyright holder hereby grants to the U.S. Government a copyright
+# license to use this computer software/computer software documentation
+# that is of the same scope as the rights set forth in the definition of
+# "unlimited rights" found in DFARS 252.227-7014(a)(15)(June 1995).
+#
+
+use Socket;
+use Sys::Hostname;
+use Getopt::Long;
+use XML::LibXML;
+use Fcntl;
+use strict;
+
+# Constants 
+use constant COMPONENT_ALL        => 0;
+use constant COMPONENT_PHYLAYER   => 100;
+use constant COMPONENT_PHYILAYER  => 101;
+use constant COMPONENT_MACLAYER   => 200;
+use constant COMPONENT_MACILAYER  => 201;
+use constant COMPONENT_SHIMLAYER  => 300;
+use constant COMPONENT_SHIMILAYER => 301;
+
+use constant DEFAULT_EVENT_GROUP   => "224.1.2.8";
+use constant DEFAULT_EVENT_PORT    => 45703;
+use constant DEFAULT_DEST_PLATFORM => 0; # all
+use constant DEFAULT_DEST_NEM      => 0; # all
+use constant DEFAULT_DEST_LAYER    => COMPONENT_ALL;
+use constant DEFAULT_WAIT_TIME     => 15;
+use constant DEFAULT_XML_FILE      => "statistics_definition.xml";
+
+use constant EVENTSERVICE_CLIENT_MSG => 1;
+use constant EVENTSERVICE_SERVER_MSG => 2;
+
+use constant EMANE_STATISTIC_REQUEST  => 205;
+use constant EMANE_STATISTIC_RESPONSE => 206;
+
+use constant STATISTIC_RESPONSE_HEADER_SIZE => 4;
+use constant STATISTIC_RESPONSE_ENTRY_SIZE  => 8;
+
+# Stubs for setsockopt
+sub IP_ADD_MEMBERSHIP () {35;}
+sub IP_MULTICAST_LOOP () {34;}
+
+# Globals
+my ($waitTime, $destNEM, $destPlatform, $destLayer, $eventGroup, $eventPort, $outFile, $xmlFile,$verbose, $help);
+my @events;
+my $alarmReceived;
+
+my %componentNameHash = ( 0   => 'COMPONENT_ALL',
+                          100 => 'COMPONENT_PHYLAYER',
+                          101 => 'COMPONENT_PHYILAYER',
+                          200 => 'COMPONENT_MACLAYER',
+                          201 => 'COMPONENT_MACILAYER',
+                          300 => 'COMPONENT_SHIMLAYER',
+                          301 => 'COMPONENT_SHIMILAYER' );
+
+my %statHash = ();
+
+# Pipes between child and parent
+pipe(FROM_CHILD, TO_PARENT) or die "Can't make pipe: $!";
+
+# Set autoflush
+select(FROM_CHILD);
+$| = 1; 
+
+select(TO_PARENT);
+$| = 1; 
+
+# And back to stdout
+select(STDOUT);
+$| = 1;
+
+# Get options
+&usage && exit -1 unless GetOptions("wait=i"     => \$waitTime,
+                                    "nem=i"      => \$destNEM,
+                                    "platform=i" => \$destPlatform,
+                                    "layer=i"    => \$destLayer,
+                                    "group=s"    => \$eventGroup,
+                                    "port=i"     => \$eventPort, 
+                                    "file=s"     => \$outFile,
+                                    "xml=s"      => \$xmlFile,
+                                    "verbose"    => \$verbose,
+                                    "help"       => \$help);
+
+# Someone pressed the pink button
+&usage && exit 1 if $help;
+
+# Set vars to default if unset
+$waitTime     = DEFAULT_WAIT_TIME     unless $waitTime;
+$destNEM      = DEFAULT_DEST_NEM      unless $destNEM;
+$destPlatform = DEFAULT_DEST_PLATFORM unless $destPlatform;
+$destLayer    = DEFAULT_DEST_LAYER    unless $destLayer;
+$eventGroup   = DEFAULT_EVENT_GROUP   unless $eventGroup;
+$eventPort    = DEFAULT_EVENT_PORT    unless $eventPort;
+$xmlFile      = DEFAULT_XML_FILE      unless $xmlFile;
+
+# Check validity of group and port
+unless (($eventGroup =~ /\d+\.\d+\.\d+\.\d+/) && ($eventPort > 0) && ($eventPort < 65535))
+{
+    print "Invalid group ($eventGroup) or port number ($eventPort)!\n";
+    &usage && exit -1;
+}
+
+# Common network vars
+my $proto = getprotobyname('udp');
+my $addr = inet_aton($eventGroup);
+
+# Load up the stat definitions from xml file
+&load_xml($xmlFile, \%statHash);
+
+# Create child process and wait for responses for '$waitTime'
+if (my $forkPid = fork)
+{
+    # Parent 
+    close(TO_PARENT);
+
+    # Make FROM_CHILD non-blocking
+    my $flags = 0;
+    fcntl(FROM_CHILD, F_GETFL, $flags) or die "Could not get FROM_CHILD flags: $!";
+    fcntl(FROM_CHILD, F_SETFL, $flags | O_NONBLOCK) or die "Could not set FROM_CHILD flags: $!";
+    
+    # Set alarm to let us know when we should stop listening
+    $SIG{ALRM} = sub { $alarmReceived = 1; };
+    print "[] Setting alarm to $waitTime\n";
+    alarm($waitTime);
+
+    # Create the request event
+    my $request = &create_request_event;
+
+    # Create socket and send request
+    my $dstAddr = sockaddr_in($eventPort, $addr);
+
+    print "[] Sending request...\n";
+
+    # Opening the socket
+    socket(SOCK, PF_INET, SOCK_DGRAM, $proto) or die "Could not create send socket: $!";
+
+    # Sending request
+    send(SOCK, $request, 0, $dstAddr) or die "Unable to send: $!";
+
+    # Allow child time to receive and store responses
+    print "[] Waiting for response...\n";
+
+    while(!$alarmReceived)
+    {
+        my $buf = <FROM_CHILD>;
+        if ($buf)
+        {
+            chomp($buf);
+            push(@events, $buf);
+        }
+   }
+
+    # Terminate the child
+    print "[] Terminating child process...\n";
+
+    kill('TERM', $forkPid);
+
+    # Process the responses
+    &record_responses;
+
+    close(FROM_CHILD);
+
+    # Done...
+    print "[] Done.\n";
+}
+else
+{
+    # Child
+    close(FROM_CHILD);
+    
+    # Create socket and wait for responses
+    socket(RSOCK, PF_INET, SOCK_DGRAM, $proto) or die "Could not create recv socket: $!";
+
+    setsockopt(RSOCK,SOL_SOCKET,SO_REUSEADDR,1)
+        or die "Failed to set reuse addr: $!";
+
+    bind(RSOCK, sockaddr_in($eventPort, INADDR_ANY)) or die "Could not bind recv socket: $!";
+
+    # Set multicast option, DISABLE loopback
+    setsockopt(RSOCK, getprotobyname('ip'), IP_ADD_MEMBERSHIP, $addr . INADDR_ANY)
+        or die "Failed to add membership: $!";
+    
+    setsockopt(RSOCK, getprotobyname('ip'), IP_MULTICAST_LOOP, 1)
+        or die "Failed to disable loopback: $!";
+
+    # Binary data through the socket
+    binmode(RSOCK, ":raw");
+
+    while (1)
+        {
+            # Receive data from socket
+            my $buf;
+            recv(RSOCK, $buf, 65535, 0) or die "Error on recv() call: $!";
+            
+            my ($msgId, $msgLen, $data) = unpack("n2a*", $buf);
+
+            print TO_PARENT  $buf ."\n";
+
+        }
+    
+    close(TO_PARENT);
+}
+
+# --=== SUBS ===-- #
+
+#
+# Shows usage
+#
+sub usage
+{
+    print "Usage: $0 [OPTIONs]\n";
+    print "\tWhere OPTION is one or more of:\n\n";
+    print "--xml FILENAME            Specifies where to get statistics definitions from.\n";
+    print "                               Default: " . DEFAULT_XML_FILE . "\n";
+    print "--file FILENAME           Specifies file to store received data in.\n";
+    print "                               Default: None (data goes to screen)\n";
+    print "--wait SECONDS            Specifies time to wait for response\n";
+    print "                               Default: ". DEFAULT_WAIT_TIME ."\n";
+    print "--nem NEMID               Specifies destination NEM Id\n";
+    print "                               Default: " . DEFAULT_DEST_NEM ."\n";
+    print "--platform PLATFORMID     Specifies destination Platform Id\n";
+    print "                               Default: " . DEFAULT_DEST_PLATFORM ."\n";
+    print "--layer LAYERTYPE         Specifies destination Layer Type\n";
+    print "                               Default: " . DEFAULT_DEST_LAYER ."\n";
+    print "--group IP_ADDRESS        Specifies multicast group to send to/receive from\n";
+    print "                               Default: " . DEFAULT_EVENT_GROUP ."\n";
+    print "--port                    Specifies port number to send to/receive from\n";
+    print "                               Default: " . DEFAULT_EVENT_PORT ."\n";
+    print "--verbose                 Dumps output to screen during execution.\n";
+    print "--help                    Shows this screen and exits.\n";
+    
+}
+
+#
+# Creates the request event
+#
+sub create_request_event
+{
+    print "[] Generating request...\n";
+
+    my $msg = pack("n5a2", 
+                   $destPlatform,
+                   $destNEM,
+                   $destLayer,
+                   EMANE_STATISTIC_REQUEST,
+                   2,
+                   0
+        );
+    
+    my $msgLen = length($msg);
+
+    my $totalLen = $msgLen + 4; # 2 is sizeof(header)
+    
+    my $header = pack("n2", 
+                      EVENTSERVICE_CLIENT_MSG,
+                      $totalLen
+        );
+
+    my $message = pack("a*a${msgLen}",
+                       $header,
+                       $msg
+        );
+
+    return $message;
+}
+
+#
+# Stores received response events according to options (file | screen)
+#
+sub record_responses
+{
+    # Default filehandle is std output
+    my $fh = *STDOUT;
+
+    open($fh, ">$outFile") or die "Could not open $outFile: $!" if ($outFile);
+
+    print "[] Event count: " . $#events . "... writing to $fh\n";
+    # Go through the events array and parse the data out
+    foreach my $event (@events)
+    {
+        my ($msgId, $msgLen, $evData) = unpack("n2a*", $event);
+        
+        if ($msgId == EVENTSERVICE_SERVER_MSG)
+        {
+            my ($plat, $nem, $lay, $id, $len, $type, $nemId, $regId, $data) = unpack("n8a*", $evData);
+ 
+            if ($id == EMANE_STATISTIC_REQUEST)
+            {
+                # Skip requests
+                next;
+            }
+            elsif ($id == EMANE_STATISTIC_RESPONSE)
+            {
+                my $statLen = length($data);
+                 
+                my @statId = unpack("N*", $data);
+
+                for (my $statCount = 0; $statCount < $#statId; $statCount += 2)
+                {
+                    print $fh "NEM $nemId $statHash{$type}{$regId}{'type'} ($statHash{$type}{$regId}{'name'}) :: $statHash{$type}{$regId}{'stats'}{$statId[$statCount]} = $statId[$statCount +1]\n";
+                }
+                
+                print $fh "\n";
+                
+            }
+        }
+    }
+    
+    close($fh) if ($outFile);
+}
+
+#
+# Loads xml and fills out the component name hash
+# 
+sub load_xml
+{
+    my ($file, $hashRef) = @_;
+
+    print "[] Loading xml from $file\n";
+    # Get parser
+    my $parser = XML::LibXML->new();
+
+    # Parse specified file
+    my $document = $parser->parse_file($file);
+
+    # Get components
+    my @components = $document->getElementsByTagName("component");
+
+    
+    foreach my $component (@components)
+    {
+        my $name   = $component->getAttribute("name");
+        my $type   = $component->getAttribute("type");
+        my $regId  = $component->getAttribute("registrationid");
+        my $compId = $component->getAttribute("id");
+
+        print "$type :: $compId :: $name :: $regId\n" if $verbose;
+
+        $$hashRef{$compId}{$regId}{'name'} = $name;
+        $$hashRef{$compId}{$regId}{'type'} = $type;
+
+        foreach my $stat ($component->getChildrenByTagName("statistic"))
+        {
+            my $statId = $stat->getAttribute("id");
+            my $statValue = $stat->textContent;
+            print "\t\t$statId :: $statValue\n" if $verbose;
+
+            $$hashRef{$compId}{$regId}{'stats'}{$statId} = $statValue;
+
+        }
+
+    }
+    
+
+}

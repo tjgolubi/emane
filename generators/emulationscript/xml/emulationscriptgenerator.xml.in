@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE eventgenerator SYSTEM "file://@datadir@/dtd/eventgenerator.dtd">
+<eventgenerator name="emulationscripteventgenerator" library="emulationscriptgenerator">
+  <param name="inputfile" value="path_loss_realshort_00.xml"/>
+  <param name="inputfile" value="path_loss_realshort_01.xml"/>
+  <param name="inputfile" value="path_loss_realshort_02.xml"/>
+  <param name="inputfile" value="path_loss_realshort_03.xml"/>
+  <param name="repeatcount" value="1"/>
+  <param name="schemalocation" value="http://configserver/schema/EmulationScriptSchema.xsd"/>
+</eventgenerator>

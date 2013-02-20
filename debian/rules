@@ -1,0 +1,303 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+# Sample debian/rules that uses debhelper.
+# This file was originally written by Joey Hess and Craig Small.
+# As a special exception, when this file is copied by dh-make into a
+# dh-make output file, you may use that output file without restriction.
+# This special exception was added by Craig Small in version 0.37 of dh-make.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+
+# These are used for cross-compiling and for saving the configure script
+# from having to guess our platform (since we know it already)
+DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+ifneq ($(DEB_HOST_GNU_TYPE),$(DEB_BUILD_GNU_TYPE))
+CROSS= --build $(DEB_BUILD_GNU_TYPE) --host $(DEB_HOST_GNU_TYPE)
+else
+CROSS= --build $(DEB_BUILD_GNU_TYPE)
+endif
+
+
+
+
+# shared library versions, option 1
+version=2.0.5
+major=2
+# option 2, assuming the library is created as src/.libs/libfoo.so.2.0.5 or so
+#version=`ls src/.libs/lib*.so.* | \
+# awk '{if (match($$0,/[0-9]+\.[0-9]+\.[0-9]+$$/)) print substr($$0,RSTART)}'`
+#major=`ls src/.libs/lib*.so.* | \
+# awk '{if (match($$0,/\.so\.[0-9]+$$/)) print substr($$0,RSTART+4)}'`
+
+config.status: configure
+	dh_testdir
+	# Add here commands to configure the package.
+ifneq "$(wildcard /usr/share/misc/config.sub)" ""
+	cp -f /usr/share/misc/config.sub config.sub
+endif
+ifneq "$(wildcard /usr/share/misc/config.guess)" ""
+	cp -f /usr/share/misc/config.guess config.guess
+endif
+	./configure $(CROSS) --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,defs -lpthread -lACE"
+
+
+build: build-stamp
+build-stamp:  config.status 
+	dh_testdir
+
+	# Add here commands to compile the package.
+	$(MAKE) 
+
+	touch $@
+
+clean: 
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp 
+
+	# Add here commands to clean up after the build process.
+	[ ! -f Makefile ] || $(MAKE) clean
+
+	dh_clean 
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_prep  
+	dh_installdirs
+
+	# Add here commands to install the package into debian/tmp
+	$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
+
+	# EMANE
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane
+
+	#EMANE Devel
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-devel
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-devel
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-devel
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-devel
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-devel
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-devel
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-devel
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-devel
+
+	#EMANE RFPipe
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-model-rfpipe
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-rfpipe
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-model-rfpipe
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-model-rfpipe
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-rfpipe
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-model-rfpipe
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-model-rfpipe
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-model-rfpipe
+
+	#EMANE Universal
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-model-universal
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-universal
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-model-universal
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-model-universal
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-universal
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-model-universal
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-model-universal
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-model-universal
+
+
+	#EMANE IEEE80211abg
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-model-ieee80211abg
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-ieee80211abg
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-model-ieee80211abg
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-model-ieee80211abg
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-ieee80211abg
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-model-ieee80211abg
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-model-ieee80211abg
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-model-ieee80211abg
+
+	#EMANE GPS Location Agent
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-agent-gpsdlocation
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-agent-gpsdlocation
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-agent-gpsdlocation
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-agent-gpsdlocation
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-agent-gpsdlocation
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-agent-gpsdlocation
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-agent-gpsdlocation
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-agent-gpsdlocation
+
+	#EMANE DTDs
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-dtds
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-dtds
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-dtds
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-dtds
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-dtds
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-dtds
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-dtds
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-dtds
+
+	#EMANE Event Daemon
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-eventdaemon
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-eventdaemon
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-eventdaemon
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-eventdaemon
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-eventdaemon
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-eventdaemon
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-eventdaemon
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-eventdaemon
+
+	#EMANE Event Service
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-eventservice
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-eventservice
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-eventservice
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-eventservice
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-eventservice
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-eventservice
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-eventservice
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-eventservice
+
+	#EMANE Emulationscript Generator
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-emulationscript
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-emulationscript
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-emulationscript
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-emulationscript
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-emulationscript
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-emulationscript
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-emulationscript
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-emulationscript
+	cp -f $(CURDIR)/generators/emulationscript/xml/EmulationScriptSchema.xsd $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-emulationscript
+
+	#EMANE MitreMobility Generator
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-mitremobility
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-mitremobility
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-mitremobility
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-mitremobility
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-mitremobility
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-mitremobility
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-mitremobility
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-mitremobility
+
+        #EMANE AntennaProfile Generator
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-antennaprofile
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-antennaprofile
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-antennaprofile
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-antennaprofile
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-antennaprofile
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-antennaprofile
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-antennaprofile
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-gen-antennaprofile
+
+	#EMANE Libraries
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-libs
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-libs
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-libs
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-libs
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-libs
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-libs
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-libs
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-libs
+
+	#EMANE Bypass Model
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-model-bypass
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-bypass
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-model-bypass
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-model-bypass
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-bypass
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-model-bypass
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-model-bypass
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-model-bypass
+
+#EMANE PHY API Test Shim
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-model-phyapitest
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-phyapitest
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-model-phyapitest
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-model-phyapitest
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-model-phyapitest
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-model-phyapitest
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-model-phyapitest
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-model-phyapitest
+
+	#EMANE Transport Daemon
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-transportdaemon
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-transportdaemon
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-transportdaemon
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-transportdaemon
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-transportdaemon
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-transportdaemon
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-transportdaemon
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-transportdaemon
+
+	#EMANE Raw Transport
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-raw
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-raw
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-raw
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-raw
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-raw
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-raw
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-raw
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-raw
+
+	#EMANE Virtual Transport
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-virtual
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-virtual
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-virtual
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-virtual
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-virtual
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-virtual
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-virtual
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-trans-virtual
+
+	#EMANE Utils
+	mkdir -p $(CURDIR)/debian/tmp/usr/share/doc/emane-utils
+	cp -f $(CURDIR)/AUTHORS $(CURDIR)/debian/tmp/usr/share/doc/emane-utils
+	cp -f $(CURDIR)/COPYING $(CURDIR)/debian/tmp/usr/share/doc/emane-utils
+	cp -f $(CURDIR)/ChangeLog $(CURDIR)/debian/tmp/usr/share/doc/emane-utils
+	cp -f $(CURDIR)/NEWS $(CURDIR)/debian/tmp/usr/share/doc/emane-utils
+	cp -f $(CURDIR)/PROBLEM-REPORT-FORM $(CURDIR)/debian/tmp/usr/share/doc/emane-utils
+	cp -f $(CURDIR)/README $(CURDIR)/debian/tmp/usr/share/doc/emane-utils
+	cp -f $(CURDIR)/SPONSOR $(CURDIR)/debian/tmp/usr/share/doc/emane-utils
+
+# Build architecture-independent files here.
+binary-indep: install
+# We have nothing to do by default.
+
+# Build architecture-dependent files here.
+binary-arch: install
+	dh_testdir
+	dh_testroot
+#	dh_install
+#	dh_installdocs
+#	dh_installexamples
+	dh_install
+#	dh_installmenu
+#	dh_installdebconf
+#	dh_installlogrotate
+#	dh_installemacsen
+#	dh_installpam
+#	dh_installmime
+#	dh_installinit
+#	dh_installcron
+#	dh_installinfo
+	dh_installman
+	dh_link
+	dh_strip
+	dh_compress --exclude=xml --exclude=README --exclude=COPYING --exclude=ChangeLog --exclude=NEWS --exclude=SPONSOR --exclude=PROBLEM-REPORT-FORM --exclude=AUTHORS --exclude=xsd
+	dh_fixperms
+#	dh_perl
+#	dh_python
+	dh_makeshlibs
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install 

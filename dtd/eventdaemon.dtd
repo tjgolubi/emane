@@ -1,0 +1,13 @@
+<?xml encoding="UTF-8"?>
+
+<!ELEMENT eventdaemon (param*, agent*)>
+<!ATTLIST eventdaemon 
+          name CDATA #REQUIRED
+          nemid CDATA #REQUIRED>
+
+<!ELEMENT agent EMPTY>
+<!ATTLIST agent
+          definition NMTOKEN #REQUIRED>
+
+<!ENTITY % param SYSTEM "param.dtd">
+%param;

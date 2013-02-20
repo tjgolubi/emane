@@ -1,0 +1,3 @@
+/usr/lib/libemulationscriptgenerator.*
+/usr/share/doc/emane-gen-emulationscript/*
+/usr/share/emane/generators/emulationscript/xml/*

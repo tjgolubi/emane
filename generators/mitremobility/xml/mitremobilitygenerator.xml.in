@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE eventgenerator SYSTEM "file://@datadir@/dtd/eventgenerator.dtd">
+<eventgenerator name="mitremobilitymodeleventgenerator" library="mitremobilitygenerator">
+  <param name="inputfileformat" value="path_loss_matrix_%02d.txt"/>
+  <param name="inputfilecount" value="11"/>
+  <param name="totalnodes" value="70"/>
+  <param name="maxnemidpresent" value="12"/>
+  <param name="repeatcount" value="1"/>
+  <param name="utmzone" value="18T"/>
+</eventgenerator>

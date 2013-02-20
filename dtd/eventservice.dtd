@@ -1,0 +1,14 @@
+<?xml encoding="UTF-8"?>
+
+<!ELEMENT eventservice (param*, generator*)>
+<!ATTLIST eventservice 
+          name CDATA #REQUIRED
+          deployment CDATA #REQUIRED>
+
+<!ELEMENT generator EMPTY>
+<!ATTLIST generator
+          name CDATA #REQUIRED
+          definition NMTOKEN #REQUIRED>
+
+<!ENTITY % param SYSTEM "param.dtd">
+%param;
