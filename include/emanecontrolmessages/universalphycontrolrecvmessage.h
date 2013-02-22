@@ -347,7 +347,7 @@ namespace EMANE
 
 
       // scale factor for rx power
-      static const float DB_SCALE_FACTOR = 100.0;
+      static const int DB_SCALE_FACTOR = 100;
 
       // option limits
       const static ACE_UINT8 MAX_NUM_FREQUENCY_INFO_ENTRIES = 255; 

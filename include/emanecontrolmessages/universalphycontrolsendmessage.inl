@@ -121,7 +121,7 @@ inline float EMANE::UniversalPhyControlSendMessage::getTxPowerdBm() const
 
 inline void EMANE::UniversalPhyControlSendMessage::setTxPowerdBm(float dTxPowerdBm) 
    { 
-     data_.i16TxPowerdBmScaled_ = dTxPowerdBm * DB_SCALE_FACTOR;
+     data_.i16TxPowerdBmScaled_ = dTxPowerdBm * float(DB_SCALE_FACTOR);
 
      setBit(TXPOWER_BIT);
    }

@@ -194,14 +194,14 @@ EMANE::RegistrationId EMANE::CommonPHYHeader::getRegistrationId() const
 inline
 float  EMANE::CommonPHYHeader::getTxPowerdBm() const
 {
-  return data_.i16TxPowerdBmScaled_ / DB_SCALE_FACTOR;
+  return data_.i16TxPowerdBmScaled_ / float(DB_SCALE_FACTOR);
 }
 
 
 inline
 float EMANE::CommonPHYHeader::getAntennaGaindBi() const
 {
-  return  data_.i16AntennaGaindBiScaled_ / DB_SCALE_FACTOR;
+  return  data_.i16AntennaGaindBiScaled_ / float(DB_SCALE_FACTOR);
 }
 
 

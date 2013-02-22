@@ -439,7 +439,7 @@ namespace EMANE
 
        private:
         // scale factor for noise floor
-        const static float DB_SCALE_FACTOR = 0xffff;
+        const static int DB_SCALE_FACTOR = 0xffff;
 
         /**
          * @struct  PHYRxFrequencyData

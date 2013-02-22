@@ -136,7 +136,7 @@ namespace EMANE
 
          private:         
           // scale factor for tx power
-          static const float DB_SCALE_FACTOR = 100.0;
+          static const int DB_SCALE_FACTOR = 100;
 
           ACE_UINT16    u16Src_;                   // the NEM
           ACE_INT16     i16TxPowerdBmScaled_;      // tx power in dBm

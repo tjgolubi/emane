@@ -258,7 +258,7 @@ namespace EMANE
     const static ACE_UINT16 COMMON_PHY_HEADER_VERSION = 0x0002;
     
     // scale factor for tx power and antenna gain
-    const static float DB_SCALE_FACTOR = 100.0;
+    const static int DB_SCALE_FACTOR = 100;
 
     // max number of frequency entries
     const static ACE_UINT8 MAX_NUM_FREQUENCY_INFO_ENTRIES = 255; 
