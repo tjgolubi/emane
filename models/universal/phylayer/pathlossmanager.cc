@@ -338,7 +338,7 @@ UniversalPHY::PathLossManager::load(const PathlossEvent & event)
   for(size_t i = 0; i < event.getNumberOfEntries(); ++i)
     {
       // get fwd path loss value
-      const float fPathLoss = e[i].i32PathLossDBScaled_ / PathlossEvent::PATHLOSSSCALE;
+      const float fPathLoss = e[i].i32PathLossDBScaled_ / float(PathlossEvent::PATHLOSSSCALE);
 
       // insert entry
       std::pair<UniversalPHY::PathLossEntry::PathLossEntryMap::iterator, bool> result = 

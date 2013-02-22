@@ -54,7 +54,7 @@ class PathlossEvent : public EMANE::Event
 public:
   static const EMANE::EventId EVENT_ID = EMANE::REGISTERED_EMANE_EVENT_PATHLOSS;
 
-  static const float PATHLOSSSCALE = 10000.0;
+  static const int PATHLOSSSCALE = 10000;
  
   /**
     * @struct PathlossEntry
